@@ -17,6 +17,14 @@ export default function SignUpPage() {
           },
         }}
       />
+      <div className="mt-6 flex justify-center">
+        <a
+          href="/sign-in"
+          className="glass-button px-6 py-2 rounded-xl text-base text-white/80 hover:bg-white/10 transition"
+        >
+          Already have an account? Sign in
+        </a>
+      </div>
     </div>
   );
 }
