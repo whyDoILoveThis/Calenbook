@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  databases,
-  DATABASE_ID,
-  APPOINTMENTS_COLLECTION_ID,
-  Query,
-} from "@/lib/appwrite-server";
+import { getById, getAll, updateById, deleteById } from "@/lib/firebase-helpers";
 import { isTimeConflict, isAdmin } from "@/lib/utils";
 
 // PATCH update appointment (approve/reject)
@@ -20,26 +15,16 @@ export async function PATCH(
     // If approving, check for time conflicts
     if (status === "approved" && arrivalTime && finishedTime) {
       // Get the appointment being approved to know the date
-      const appointment = await databases.getDocument(
-        DATABASE_ID,
-        APPOINTMENTS_COLLECTION_ID,
-        id
-      );
-
+      const appointment = await getById("appointments", id);
+      if (!appointment) {
+        return NextResponse.json({ error: "Appointment not found" }, { status: 404 });
+      }
       // Get all approved appointments on the same date
-      const existing = await databases.listDocuments(
-        DATABASE_ID,
-        APPOINTMENTS_COLLECTION_ID,
-        [
-          Query.equal("date", appointment.date),
-          Query.equal("status", "approved"),
-          Query.notEqual("$id", id),
-          Query.limit(100),
-        ]
-      );
-
+      const all = await getAll("appointments");
+      const existing = (all as Array<{ date: string; status: string; $id: string; arrivalTime?: string; finishedTime?: string }>).
+        filter((doc) => doc.date === appointment.date && doc.status === "approved" && doc.$id !== id);
       // Check for conflicts
-      for (const doc of existing.documents) {
+      for (const doc of existing) {
         if (doc.arrivalTime && doc.finishedTime) {
           if (
             isTimeConflict(
@@ -64,13 +49,8 @@ export async function PATCH(
     if (arrivalTime) updateData.arrivalTime = arrivalTime;
     if (finishedTime) updateData.finishedTime = finishedTime;
 
-    const updated = await databases.updateDocument(
-      DATABASE_ID,
-      APPOINTMENTS_COLLECTION_ID,
-      id,
-      updateData
-    );
-
+    await updateById("appointments", id, updateData);
+    const updated = await getById("appointments", id);
     return NextResponse.json({ appointment: updated });
   } catch (error: unknown) {
     console.error("Error updating appointment:", error);
@@ -92,12 +72,10 @@ export async function DELETE(
     const userId = searchParams.get("userId");
 
     // Fetch the appointment to check ownership
-    const appointment = await databases.getDocument(
-      DATABASE_ID,
-      APPOINTMENTS_COLLECTION_ID,
-      id
-    );
-
+    const appointment = await getById("appointments", id);
+    if (!appointment) {
+      return NextResponse.json({ error: "Appointment not found" }, { status: 404 });
+    }
     // Only the owner or admin can delete
     if (!isAdmin(userId) && appointment.userId !== userId) {
       return NextResponse.json(
@@ -106,11 +84,7 @@ export async function DELETE(
       );
     }
 
-    await databases.deleteDocument(
-      DATABASE_ID,
-      APPOINTMENTS_COLLECTION_ID,
-      id
-    );
+    await deleteById("appointments", id);
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
     console.error("Error deleting appointment:", error);

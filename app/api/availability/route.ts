@@ -1,21 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  databases,
-  DATABASE_ID,
-  AVAILABILITY_COLLECTION_ID,
-  ID,
-  Query,
-} from "@/lib/appwrite-server";
+import { getAll, createWithAutoId } from "@/lib/firebase-helpers";
 
 // GET all availability rules
 export async function GET() {
   try {
-    const response = await databases.listDocuments(
-      DATABASE_ID,
-      AVAILABILITY_COLLECTION_ID,
-      [Query.limit(500)]
-    );
-    return NextResponse.json({ availability: response.documents });
+    const availability = await getAll("availability");
+    return NextResponse.json({ availability });
   } catch (error: unknown) {
     console.error("Error fetching availability:", error);
     return NextResponse.json(
@@ -32,26 +22,16 @@ export async function POST(request: NextRequest) {
     const { type, value, reason } = body;
 
     // Check if rule already exists
-    const existing = await databases.listDocuments(
-      DATABASE_ID,
-      AVAILABILITY_COLLECTION_ID,
-      [Query.equal("type", type), Query.equal("value", value), Query.limit(1)]
-    );
-
-    if (existing.total > 0) {
+    const all = await getAll("availability");
+      if ((all as Array<{ type: string; value: string }>).
+        some((rule) => rule.type === type && rule.value === value)) {
       return NextResponse.json(
         { error: "This availability rule already exists" },
         { status: 409 }
       );
     }
 
-    const rule = await databases.createDocument(
-      DATABASE_ID,
-      AVAILABILITY_COLLECTION_ID,
-      ID.unique(),
-      { type, value, reason }
-    );
-
+    const rule = await createWithAutoId("availability", { type, value, reason });
     return NextResponse.json({ availability: rule }, { status: 201 });
   } catch (error: unknown) {
     console.error("Error creating availability:", error);

@@ -1,9 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  databases,
-  DATABASE_ID,
-  AVAILABILITY_COLLECTION_ID,
-} from "@/lib/appwrite-server";
+import { deleteById } from "@/lib/firebase-helpers";
 
 // DELETE availability rule
 export async function DELETE(
@@ -12,11 +8,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    await databases.deleteDocument(
-      DATABASE_ID,
-      AVAILABILITY_COLLECTION_ID,
-      id
-    );
+    await deleteById("availability", id);
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
     console.error("Error deleting availability:", error);

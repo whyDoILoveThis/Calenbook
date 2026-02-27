@@ -12,6 +12,7 @@
     "@clerk/nextjs": "^6.38.3",
     "appwrite": "^22.4.1",
     "date-fns": "^4.1.0",
+    "firebase": "^12.10.0",
     "lucide-react": "^0.575.0",
     "next": "16.1.6",
     "node-appwrite": "^22.1.2",
