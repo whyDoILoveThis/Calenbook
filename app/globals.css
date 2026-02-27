@@ -1,8 +1,110 @@
+.cl-userButtonPopoverFooter {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  background: none !important;
+  box-shadow: none !important;
+}
+/* Hide Clerk dev mode badge */
+[data-localization*="secured by clerk development mode"],
+[aria-label*="secured by clerk development mode"] {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  background: none !important;
+  box-shadow: none !important;
+}
+.cl-footer, .cl-footer *, .cl-footerAction, .cl-internal-footer, .cl-internal-footer *, [class*="cl-footer"], [class*="cl-footerAction"] {
+  display: none !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  background: none !important;
+  box-shadow: none !important;
+}
+.cl-footer, .cl-footerAction {
+  display: none !important;
+}
+.cl-userButtonPopoverCard, .cl-userButtonPopoverCard * {
+  color: #e2e8f0 !important;
+}
+/* Clerk glassy overrides */
+.cl-card, .cl-rootBox, .cl-signIn-root, .cl-signUp-root {
+  background: rgba(15, 23, 42, 0.7) !important;
+  border-radius: 1.25rem !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.05) inset !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+}
+.cl-formButtonPrimary, .cl-socialButtonsBlockButton {
+  background: linear-gradient(135deg, rgba(147,51,234,0.3), rgba(168,85,247,0.3)) !important;
+  border: 1px solid rgba(147,51,234,0.3) !important;
+  color: rgba(224,231,255,0.9) !important;
+  border-radius: 0.75rem !important;
+  box-shadow: 0 4px 20px rgba(147,51,234,0.10) !important;
+  transition: all 0.2s;
+}
+.cl-formButtonPrimary:hover, .cl-socialButtonsBlockButton:hover {
+  background: linear-gradient(135deg, rgba(147,51,234,0.4), rgba(168,85,247,0.4)) !important;
+  border-color: rgba(147,51,234,0.5) !important;
+  box-shadow: 0 4px 20px rgba(147,51,234,0.18) !important;
+}
+.cl-headerTitle, .cl-headerSubtitle {
+  color: #e2e8f0 !important;
+  font-weight: 300 !important;
+}
+.cl-footerAction {
+  color: #a1a1aa !important;
+}
+.cl-formFieldInput {
+  background: rgba(255,255,255,0.08) !important;
+  border: 1px solid rgba(255,255,255,0.13) !important;
+  color: #e2e8f0 !important;
+  border-radius: 0.75rem !important;
+  box-shadow: none !important;
+}
+.cl-dividerRow {
+  border-color: rgba(255,255,255,0.10) !important;
+}
+.cl-userButtonPopoverCard {
+  background: rgba(15, 23, 42, 0.7) !important;
+  border-radius: 1.25rem !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.05) inset !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+}
+/* Hide scrollbar arrows for all WebKit browsers */
+::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+/* Hide scrollbar arrows for a cleaner look */
+::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #050a18;
+  --foreground: #e2e8f0;
 }
 
 @theme inline {
@@ -12,15 +114,150 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  min-height: 100vh;
+  overflow: hidden;
 }
+
+/* Animated gradient background */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(147, 51, 234, 0.12) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 50% at 80% 90%, rgba(168, 85, 247, 0.08) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 40% at 50% 50%, rgba(126, 34, 206, 0.06) 0%, transparent 70%),
+    linear-gradient(180deg, #050a18 0%, #0c1225 50%, #0a0f1e 100%);
+}
+
+/* Glass morphism base */
+.glass-panel {
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.glass-header {
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.glass-cell {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.glass-cell:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.glass-button {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.7);
+  transition: all 0.2s ease;
+}
+
+.glass-button:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.glass-input {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  outline: none;
+  transition: all 0.2s ease;
+  color-scheme: dark;
+}
+
+.glass-input:focus {
+  border-color: rgba(147, 51, 234, 0.4);
+  box-shadow: 0 0 0 3px rgba(147, 51, 234, 0.1);
+}
+
+.primary-button {
+  background: linear-gradient(135deg, rgba(147, 51, 234, 0.3), rgba(168, 85, 247, 0.3));
+  border: 1px solid rgba(147, 51, 234, 0.3);
+  color: rgba(224, 231, 255, 0.9);
+  transition: all 0.2s ease;
+}
+
+.primary-button:hover {
+  background: linear-gradient(135deg, rgba(147, 51, 234, 0.4), rgba(168, 85, 247, 0.4));
+  border-color: rgba(147, 51, 234, 0.5);
+  box-shadow: 0 4px 20px rgba(147, 51, 234, 0.2);
+}
+
+.primary-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+
+
+/* Beautiful glassy custom scrollbar for the entire site */
+html, body, * {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(200,210,220,0.32) rgba(30,34,44,0.10);
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(30,34,44,0.10);
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(80,90,110,0.08) inset;
+}
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, rgba(210,215,225,0.22) 0%, rgba(120,130,150,0.18) 100%);
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(120,130,150,0.13), 0 1px 0 0 rgba(255,255,255,0.10) inset;
+  border: 2px solid rgba(255,255,255,0.13);
+  backdrop-filter: blur(2px);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, rgba(230,235,245,0.32) 0%, rgba(120,130,150,0.28) 100%);
+  border: 2px solid rgba(255,255,255,0.18);
+}
+
+/* Smooth transitions for the calendar */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.glass-panel {
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* Selection color */
+::selection {
+  background: rgba(147, 51, 234, 0.3);
+  color: white;
+}
+
+
