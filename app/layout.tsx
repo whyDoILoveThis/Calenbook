@@ -34,8 +34,7 @@ export default function RootLayout({
           fontFamily: "var(--font-geist-sans), Arial, Helvetica, sans-serif",
           colorInputBackground: "rgba(255,255,255,0.08)",
           colorInputText: "#e2e8f0",
-          colorInputBorder: "rgba(255,255,255,0.13)",
-          colorAlphaShade: "rgba(255,255,255,0.10)",
+          colorBorder: "rgba(255,255,255,0.13)",
         },
         elements: {
           card: "glass-panel shadow-2xl border border-white/10",
