@@ -24,14 +24,17 @@ export default function Home() {
     loading,
   } = useAppStore();
 
-  const { fetchAppointments } = useAppointments();
+  const { listenAppointments } = useAppointments();
   const { fetchAvailability } = useAvailability();
 
   useEffect(() => {
-    if (isLoaded) {
-      fetchAppointments(format(currentMonth, "yyyy-MM"));
-    }
-  }, [isLoaded, currentMonth, fetchAppointments]);
+    if (!isLoaded) return;
+    const monthStr = format(currentMonth, "yyyy-MM");
+    const unsubscribe = listenAppointments(monthStr);
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [isLoaded, currentMonth, listenAppointments]);
 
   useEffect(() => {
     if (isLoaded) {

@@ -7,6 +7,7 @@ interface GlassDropdownProps {
   options: { value: string; label: string }[];
   placeholder?: string;
   className?: string;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export default function GlassDropdown({
@@ -15,6 +16,7 @@ export default function GlassDropdown({
   options,
   placeholder,
   className = "",
+  onOpenChange,
 }: GlassDropdownProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -29,17 +31,17 @@ export default function GlassDropdown({
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
+  useEffect(() => {
+    if (onOpenChange) onOpenChange(open);
+  }, [open, onOpenChange]);
+
   const selected = options.find((o) => o.value === value);
 
   return (
-    <div
-      ref={ref}
-      className={`relative min-w-[64px] ${className}`}
-      tabIndex={0}
-    >
+    <div ref={ref} className={`relative min-w-16 ${className}`} tabIndex={0}>
       <button
         type="button"
-        className="glass-input rounded-xl p-2 text-sm text-white/90 bg-gradient-to-br from-purple-900/60 to-purple-700/40 border border-purple-400/20 shadow-inner focus:ring-2 focus:ring-purple-400/40 transition-all w-full flex items-center justify-between"
+        className="glass-input rounded-xl p-2 text-sm text-white/90 bg-linear-to-br from-purple-900/60 to-purple-700/40 border border-purple-400/20 shadow-inner focus:ring-2 focus:ring-purple-400/40 transition-all w-full flex items-center justify-between"
         onClick={() => setOpen((v) => !v)}
       >
         <span className={selected ? "" : "text-white/30"}>
@@ -60,7 +62,7 @@ export default function GlassDropdown({
         </svg>
       </button>
       {open && (
-        <div className="absolute left-0 mt-1 w-full z-50 rounded-xl glass-panel bg-gradient-to-br from-purple-900/80 to-purple-700/70 border border-purple-400/20 shadow-xl overflow-hidden animate-fade-in backdrop-blur-md">
+        <div className="absolute left-0 mt-1 w-full min-w-30 z-50 rounded-xl glass-panel bg-linear-to-br from-purple-900/80 to-purple-700/70 border border-purple-400/20 shadow-xl overflow-hidden animate-fade-in backdrop-blur-md">
           <div className="max-h-56 overflow-y-auto custom-scrollbar">
             {options.map((opt) => (
               <button

@@ -10,7 +10,7 @@
   background: none !important;
   box-shadow: none !important;
 }
-/* Hide Clerk dev mode badge */
+Hide Clerk dev mode badge
 [data-localization*="secured by clerk development mode"],
 [aria-label*="secured by clerk development mode"] {
   display: none !important;

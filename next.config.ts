@@ -1,12 +1,15 @@
 import type { NextConfig } from "next";
 
-
 const nextConfig: NextConfig = {
-      // add appwrite storage domain to allowed image domains
   images: {
-    domains: ["cloud.appwrite.io"],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "cloud.appwrite.io",
+        pathname: "/v1/storage/**",
+      },
+    ],
   },
-  /* config options here */
 };
 
 export default nextConfig;

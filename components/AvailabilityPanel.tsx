@@ -18,6 +18,7 @@ export default function AvailabilityPanel() {
   const [selectedDate, setSelectedDate] = useState("");
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const weekdayRules = availability.filter((r) => r.type === "weekday");
   const dateRules = availability.filter((r) => r.type === "specific_date");
@@ -47,6 +48,7 @@ export default function AvailabilityPanel() {
   };
 
   const handleDelete = async (id: string) => {
+    setDeletingId(id);
     try {
       await deleteAvailability(id);
       toast.success("Rule removed");
@@ -55,6 +57,8 @@ export default function AvailabilityPanel() {
       const message =
         error instanceof Error ? error.message : "Failed to remove rule";
       toast.error(message);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -174,9 +178,9 @@ export default function AvailabilityPanel() {
             </p>
           )}
 
-          {weekdayRules.map((rule) => (
+          {weekdayRules.map((rule, idx) => (
             <div
-              key={rule.$id}
+              key={rule.$id || `weekday-${rule.value}-${idx}`}
               className="flex items-center justify-between glass-button rounded-xl p-3"
             >
               <div>
@@ -191,16 +195,21 @@ export default function AvailabilityPanel() {
               </div>
               <button
                 onClick={() => handleDelete(rule.$id)}
-                className="text-red-400/40 hover:text-red-400 transition-colors"
+                className={`text-red-400/40 hover:text-red-400 transition-colors ${deletingId === rule.$id ? "opacity-50 cursor-wait" : ""}`}
+                disabled={deletingId === rule.$id}
               >
-                <Trash2 className="w-4 h-4" />
+                {deletingId === rule.$id ? (
+                  <span className="w-4 h-4 animate-spin border-2 border-red-400 border-t-transparent rounded-full inline-block" />
+                ) : (
+                  <Trash2 className="w-4 h-4" />
+                )}
               </button>
             </div>
           ))}
 
-          {dateRules.map((rule) => (
+          {dateRules.map((rule, idx) => (
             <div
-              key={rule.$id}
+              key={rule.$id || `date-${rule.value}-${idx}`}
               className="flex items-center justify-between glass-button rounded-xl p-3"
             >
               <div>
@@ -215,9 +224,14 @@ export default function AvailabilityPanel() {
               </div>
               <button
                 onClick={() => handleDelete(rule.$id)}
-                className="text-red-400/40 hover:text-red-400 transition-colors"
+                className={`text-red-400/40 hover:text-red-400 transition-colors ${deletingId === rule.$id ? "opacity-50 cursor-wait" : ""}`}
+                disabled={deletingId === rule.$id}
               >
-                <Trash2 className="w-4 h-4" />
+                {deletingId === rule.$id ? (
+                  <span className="w-4 h-4 animate-spin border-2 border-red-400 border-t-transparent rounded-full inline-block" />
+                ) : (
+                  <Trash2 className="w-4 h-4" />
+                )}
               </button>
             </div>
           ))}

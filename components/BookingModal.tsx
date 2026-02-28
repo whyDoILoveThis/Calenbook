@@ -6,7 +6,6 @@ import { X, Upload, Clock, FileText, Image as ImageIcon } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { useAppointments } from "@/hooks/useData";
 import { useUser } from "@clerk/nextjs";
-import { TIME_SLOTS, formatTime } from "@/lib/utils";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
 
@@ -105,8 +104,11 @@ export default function BookingModal() {
         formData.append("images", image);
       });
 
-      await createAppointment(formData);
+      const result = await createAppointment(formData);
       toast.success("Appointment request submitted!");
+      if (result.warning) {
+        toast.error(result.warning);
+      }
       handleClose();
       fetchAppointments(format(currentMonth, "yyyy-MM"));
     } catch (error) {
@@ -171,7 +173,7 @@ export default function BookingModal() {
                     label: String(i + 1).padStart(2, "0"),
                   })),
                 ]}
-                className="min-w-[64px]"
+                className="min-w-16"
               />
               <span className="text-white/40">:</span>
               <GlassDropdown
@@ -187,7 +189,7 @@ export default function BookingModal() {
                     label: m,
                   })),
                 ]}
-                className="min-w-[64px]"
+                className="min-w-16"
               />
               <GlassDropdown
                 value={ampm}
@@ -199,7 +201,7 @@ export default function BookingModal() {
                   { value: "AM", label: "AM" },
                   { value: "PM", label: "PM" },
                 ]}
-                className="min-w-[64px]"
+                className="min-w-16"
               />
             </div>
           </div>

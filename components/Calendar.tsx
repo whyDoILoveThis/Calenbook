@@ -110,11 +110,8 @@ export default function Calendar() {
   ) => {
     e.stopPropagation();
     setSelectedAppointment(apt);
-    if (userIsAdmin) {
-      setShowAdminPanel(true);
-    } else {
-      useAppStore.getState().setShowAppointmentDetail(true);
-    }
+    // Open the appointment detail card for both admins and regular users
+    useAppStore.getState().setShowAppointmentDetail(true);
   };
 
   const weekDayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -198,9 +195,9 @@ export default function Calendar() {
               {/* Appointment dots */}
               {hasAppointments && inMonth && (
                 <div className="flex flex-wrap gap-0.5 sm:gap-1 mt-auto w-full">
-                  {dayAppointments.slice(0, 5).map((apt) => (
+                  {dayAppointments.slice(0, 5).map((apt, idx) => (
                     <span
-                      key={apt.$id}
+                      key={apt.$id || idx}
                       role="button"
                       tabIndex={0}
                       onClick={(e) => handleDotClick(e, apt)}
@@ -218,7 +215,7 @@ export default function Calendar() {
                               : "bg-white/30"
                         }
                       `}
-                      title={`${apt.userName || "Anonymous"} - ${apt.status}`}
+                      title={`${apt.arrivalTime} - ${apt.finishedTime}` || " "}
                     />
                   ))}
                   {dayAppointments.length > 5 && (

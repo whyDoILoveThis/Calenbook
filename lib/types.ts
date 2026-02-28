@@ -1,7 +1,6 @@
 export interface Appointment {
   $id: string;
-  $createdAt: string;
-  $updatedAt: string;
+  $createdAt: number; // Timestamp in milliseconds
   userId: string;
   userName?: string;
   userEmail: string;
@@ -11,13 +10,13 @@ export interface Appointment {
   finishedTime: string | null; // HH:MM set by admin on approval
   description: string;
   imageIds: string[]; // file IDs in Appwrite storage
+  imageUrls: string[]; // Preview URLs for images
   status: "pending" | "approved" | "rejected";
 }
 
 export interface Availability {
   $id: string;
-  $createdAt: string;
-  $updatedAt: string;
+  $createdAt: number; // Timestamp in milliseconds
   type: "weekday" | "specific_date";
   value: string; // "0"-"6" for weekday (0=Sun), or "YYYY-MM-DD" for specific
   reason: string;

@@ -20,7 +20,7 @@ import { Appointment } from "@/lib/types";
 import { formatTime, isTimeConflict } from "@/lib/utils";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
-import { BUCKET_ID } from "@/lib/appwrite";
+
 import { useUser } from "@clerk/nextjs";
 
 export default function AdminPanel() {
@@ -162,12 +162,6 @@ export default function AdminPanel() {
     }
   };
 
-  const getImageUrl = (fileId: string) => {
-    const endpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
-    const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
-    return `${endpoint}/storage/buckets/${BUCKET_ID}/files/${fileId}/preview?project=${projectId}&width=400`;
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
@@ -204,9 +198,9 @@ export default function AdminPanel() {
                   No appointments found
                 </p>
               )}
-              {filteredAppointments.map((apt) => (
+              {filteredAppointments.map((apt, idx) => (
                 <button
-                  key={apt.$id}
+                  key={apt.$id || idx}
                   onClick={() => handleSelectAppointment(apt)}
                   className="w-full glass-button rounded-xl p-4 text-left transition-all hover:bg-white/10"
                 >
@@ -302,24 +296,24 @@ export default function AdminPanel() {
                 </div>
 
                 {/* Images */}
-                {selectedAppointment.imageIds &&
-                  selectedAppointment.imageIds.length > 0 && (
+                {selectedAppointment.imageUrls &&
+                  selectedAppointment.imageUrls.length > 0 && (
                     <div>
                       <label className="flex items-center gap-2 text-sm text-white/40 mb-2">
                         <ImageIcon className="w-4 h-4" />
                         Reference Images
                       </label>
                       <div className="grid grid-cols-2 gap-2">
-                        {selectedAppointment.imageIds.map((id) => (
+                        {selectedAppointment.imageUrls.map((url, i) => (
                           <a
-                            key={id}
-                            href={getImageUrl(id)}
+                            key={i}
+                            href={url}
                             target="_blank"
                             rel="noopener noreferrer"
                           >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
-                              src={getImageUrl(id)}
+                              src={url}
                               alt="Reference"
                               className="w-full h-40 object-cover rounded-lg hover:opacity-80 transition-opacity"
                             />
@@ -336,9 +330,12 @@ export default function AdminPanel() {
                       Existing appointments on this date
                     </span>
                     <div className="mt-2 space-y-1">
-                      {approvedOnDate.map((apt) => (
+                      {approvedOnDate.map((apt, i) => (
                         <div
-                          key={apt.$id}
+                          key={
+                            apt.$id ||
+                            `${apt.userId}-${apt.date}-${apt.requestedTime}-${i}`
+                          }
                           className="text-sm text-amber-300/80"
                         >
                           {apt.userName || "Anonymous"}:{" "}
