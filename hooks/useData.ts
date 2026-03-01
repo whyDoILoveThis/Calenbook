@@ -16,12 +16,19 @@ export function useAppointments() {
     setLoading(true);
     const dbRef = ref(db, "appointments");
     const callback = (snapshot: DataSnapshot) => {
-      if (!snapshot.exists()) {
-        setAppointments([]);
+      const exists = snapshot.exists();
+      if (!exists) {
+        console.warn("[TRACE] Realtime snapshot missing; preserving local appointments (transient).");
         setLoading(false);
         return;
       }
       const raw = snapshot.val();
+      try {
+        const count = raw ? Object.keys(raw).length : 0;
+        console.log("[TRACE] Realtime snapshot items:", count);
+      } catch (e) {
+        console.log("[TRACE] Realtime snapshot received (non-object)");
+      }
       const appointments = Object.entries(raw || {}).map(([key, value]) => ({ ...(value as Record<string, unknown>), $id: key })) as unknown[];
 
       const normalizeStatus = (s: unknown) =>

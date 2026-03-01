@@ -315,7 +315,7 @@ export default function AdminPanel() {
                             <img
                               src={url}
                               alt="Reference"
-                              className="w-full h-40 object-cover rounded-lg hover:opacity-80 transition-opacity"
+                              className="w-full h-40 object-contain rounded-lg hover:opacity-80 transition-opacity"
                             />
                           </a>
                         ))}

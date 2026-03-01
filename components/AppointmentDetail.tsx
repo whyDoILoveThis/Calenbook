@@ -488,7 +488,7 @@ export default function AppointmentDetail() {
                       <img
                         src={displayUrl}
                         alt="Reference"
-                        className="w-full h-32 object-cover rounded-lg hover:opacity-80 transition-opacity"
+                        className="w-full h-32 object-contain rounded-lg hover:opacity-80 transition-opacity"
                       />
                     </a>
                   );
