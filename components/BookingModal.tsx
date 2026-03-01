@@ -44,6 +44,7 @@ export default function BookingModal() {
   const [images, setImages] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [showMyAppointments, setShowMyAppointments] = useState(false);
   const [dotColor, setDotColor] = useState<string>(DEFAULT_DOT_COLOR);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -191,6 +192,7 @@ export default function BookingModal() {
     }
 
     setSubmitting(true);
+    setUploadProgress(0);
     try {
       const formData = new FormData();
       formData.append("userId", user?.id || "");
@@ -209,7 +211,9 @@ export default function BookingModal() {
         formData.append("images", image);
       });
 
-      const result = await createAppointment(formData);
+      const result = await createAppointment(formData, (percent) => {
+        setUploadProgress(percent);
+      });
       toast.success("Appointment request submitted!");
       if (result.warning) {
         toast.error(result.warning);
@@ -223,6 +227,7 @@ export default function BookingModal() {
       toast.error(message);
     } finally {
       setSubmitting(false);
+      setUploadProgress(0);
     }
   };
 
@@ -527,9 +532,18 @@ export default function BookingModal() {
             type="submit"
             disabled={submitting || !!timeOverlap}
             className={`w-full primary-button py-3 rounded-xl text-sm font-medium transition-all duration-200 ${submitting ? "submitting" : ""}`}
+            style={
+              submitting
+                ? ({
+                    "--progress": uploadProgress / 100,
+                  } as React.CSSProperties)
+                : undefined
+            }
           >
             <span className="relative z-10">
-              {submitting ? "Submitting..." : "Submit Request"}
+              {submitting
+                ? `Uploading${uploadProgress > 0 ? ` ${uploadProgress}%` : "..."}`
+                : "Submit Request"}
             </span>
           </button>
         </form>

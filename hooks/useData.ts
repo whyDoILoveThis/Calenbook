@@ -149,19 +149,46 @@ export function useAppointments() {
   );
 
     const createAppointment = useCallback(
-    async (formData: FormData): Promise<{ success: boolean; warning?: string }> => {
+    async (
+      formData: FormData,
+      onProgress?: (percent: number) => void,
+    ): Promise<{ success: boolean; warning?: string }> => {
       // mark pending write for a longer window so realtime listener won't clear on transient state
       useAppStore.getState().setPendingWriteUntil(Date.now() + 5000);
       try {
-          const res = await fetch("/api/appointments", {
-            method: "POST",
-            body: formData,
-          });
           type CreateResp = { warning?: string; appointment?: Appointment; error?: string };
-          const data = (await res.json().catch(() => ({}))) as CreateResp;
-          if (!res.ok) {
-            throw new Error(data.error || "Failed to create appointment");
-          }
+
+          const data = await new Promise<CreateResp>((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", "/api/appointments");
+
+            // Track upload progress
+            xhr.upload.onprogress = (event) => {
+              if (event.lengthComputable && onProgress) {
+                const percent = Math.round((event.loaded / event.total) * 100);
+                onProgress(percent);
+              }
+            };
+
+            xhr.onload = () => {
+              try {
+                const parsed = JSON.parse(xhr.responseText) as CreateResp;
+                if (xhr.status >= 200 && xhr.status < 300) {
+                  resolve(parsed);
+                } else {
+                  reject(new Error(parsed.error || "Failed to create appointment"));
+                }
+              } catch {
+                reject(new Error("Failed to parse server response"));
+              }
+            };
+
+            xhr.onerror = () => reject(new Error("Network error during upload"));
+            xhr.onabort = () => reject(new Error("Upload cancelled"));
+
+            xhr.send(formData);
+          });
+
           // Wait a bit for Firebase to sync before clearing pending flag
           await new Promise((resolve) => setTimeout(resolve, 1000));
           useAppStore.getState().setPendingWriteUntil(null);
