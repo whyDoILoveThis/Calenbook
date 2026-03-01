@@ -210,15 +210,17 @@ export default function AdminPanel() {
               <ExternalLink className="w-4 h-4" />
             </button>
           )}
-          <button
-            onClick={() => {
-              setShowBookingModal(true);
-              setShowAdminPanel(false);
-            }}
-            className="glass-button p-1.5 rounded-lg"
-          >
-            <IconDocument />
-          </button>
+          {view === "list" && selectedDate && (
+            <button
+              onClick={() => {
+                setShowBookingModal(true);
+                setShowAdminPanel(false);
+              }}
+              className="glass-button p-1.5 rounded-lg"
+            >
+              <IconDocument size={16} />
+            </button>
+          )}
           <button
             onClick={handleClose}
             className="glass-button p-1.5 rounded-lg"
@@ -430,6 +432,7 @@ export default function AdminPanel() {
                 )}
 
                 {/* Time selection for approval */}
+                {/*TODO: when approving or rejecting the admin should be prompted with modal with weather they want to send and sms or an email or both or not send anything with twilio at all */}
                 {selectedAppointment.status === "pending" && (
                   <div className="space-y-4">
                     <TimeSelector
