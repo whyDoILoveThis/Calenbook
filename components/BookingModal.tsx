@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import GlassDropdown from "./GlassDropdown";
 import {
   X,
@@ -45,9 +45,40 @@ export default function BookingModal() {
   const [previews, setPreviews] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [visualProgress, setVisualProgress] = useState(0);
   const [showMyAppointments, setShowMyAppointments] = useState(false);
   const [dotColor, setDotColor] = useState<string>(DEFAULT_DOT_COLOR);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Smooth visual progress: maps real upload 0-100 → 0-85%, then slow creep while server processes
+  useEffect(() => {
+    if (!submitting) {
+      setVisualProgress(0);
+      return;
+    }
+
+    // Real upload maps to 0-85% of the visual bar
+    const target = uploadProgress < 100 ? (uploadProgress / 100) * 85 : 85; // Once upload done, start creeping from 85
+
+    // Smooth interpolation tick
+    const interval = setInterval(() => {
+      setVisualProgress((prev) => {
+        // If upload is still going, smoothly approach the target
+        if (uploadProgress < 100) {
+          const diff = target - prev;
+          if (Math.abs(diff) < 0.3) return target;
+          return prev + diff * 0.15;
+        }
+        // Upload done, server processing — creep slowly toward 97
+        if (prev < 97) {
+          return prev + 0.3;
+        }
+        return prev;
+      });
+    }, 50);
+
+    return () => clearInterval(interval);
+  }, [submitting, uploadProgress]);
 
   const userIsAdmin = isAdmin(user?.id);
   const hasTooManyAppointments =
@@ -214,6 +245,11 @@ export default function BookingModal() {
       const result = await createAppointment(formData, (percent) => {
         setUploadProgress(percent);
       });
+
+      // Snap progress to 100% and let the user see it fill before closing
+      setVisualProgress(100);
+      await new Promise((resolve) => setTimeout(resolve, 400));
+
       toast.success("Appointment request submitted!");
       if (result.warning) {
         toast.error(result.warning);
@@ -535,15 +571,23 @@ export default function BookingModal() {
             style={
               submitting
                 ? ({
-                    "--progress": uploadProgress / 100,
+                    "--progress": visualProgress / 100,
                   } as React.CSSProperties)
                 : undefined
             }
           >
-            <span className="relative z-10">
-              {submitting
-                ? `Uploading${uploadProgress > 0 ? ` ${uploadProgress}%` : "..."}`
-                : "Submit Request"}
+            <span className="relative z-10 flex items-center justify-center gap-2">
+              {submitting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Uploading
+                  {visualProgress > 1
+                    ? ` ${Math.round(visualProgress)}%`
+                    : "..."}
+                </>
+              ) : (
+                "Submit Request"
+              )}
             </span>
           </button>
         </form>
