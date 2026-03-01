@@ -294,6 +294,9 @@ export function useAvailability() {
       type: string;
       value: string;
       reason: string;
+      startTime?: string;
+      endTime?: string;
+      isClosed?: boolean;
     }): Promise<boolean> => {
       try {
         const res = await fetch("/api/availability", {
@@ -327,5 +330,34 @@ export function useAvailability() {
     }
   }, []);
 
-  return { fetchAvailability, createAvailability, deleteAvailability };
+  const updateAvailability = useCallback(
+    async (
+      id: string,
+      data: {
+        startTime?: string;
+        endTime?: string;
+        isClosed?: boolean;
+        reason?: string;
+      }
+    ): Promise<boolean> => {
+      try {
+        const res = await fetch(`/api/availability/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        if (!res.ok) {
+          const result = await res.json();
+          throw new Error(result.error || "Failed to update rule");
+        }
+        return true;
+      } catch (error) {
+        console.error("Failed to update availability:", error);
+        throw error;
+      }
+    },
+    []
+  );
+
+  return { fetchAvailability, createAvailability, updateAvailability, deleteAvailability };
 }

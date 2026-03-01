@@ -16,7 +16,7 @@ import {
 } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useAppStore } from "@/lib/store";
-import { isAdmin } from "@/lib/utils";
+import { isAdmin, formatTime } from "@/lib/utils";
 import { useUser } from "@clerk/nextjs";
 
 export default function Calendar() {
@@ -45,17 +45,63 @@ export default function Calendar() {
   const unavailableDates = useMemo(() => {
     const dates = new Set<string>();
     availability.forEach((rule) => {
+      // Legacy specific_date rules (unavailable)
       if (rule.type === "specific_date") {
+        dates.add(rule.value);
+      }
+      // New date_override rules that are closed
+      if (rule.type === "date_override" && rule.isClosed) {
         dates.add(rule.value);
       }
     });
     return dates;
   }, [availability]);
 
+  // Map of dates/weekdays with custom (non-default) operating hours for display
+  const customHoursMap = useMemo(() => {
+    const map: Record<string, { start: string; end: string }> = {};
+    // Collect date_override with custom hours (not closed)
+    availability.forEach((rule) => {
+      if (
+        rule.type === "date_override" &&
+        !rule.isClosed &&
+        rule.startTime &&
+        rule.endTime
+      ) {
+        map[rule.value] = { start: rule.startTime, end: rule.endTime };
+      }
+    });
+    return map;
+  }, [availability]);
+
+  // Map of weekday indices with custom hours from weekly_hours rules
+  const weeklyHoursMap = useMemo(() => {
+    const map: Record<number, { start: string; end: string }> = {};
+    availability.forEach((rule) => {
+      if (
+        rule.type === "weekly_hours" &&
+        !rule.isClosed &&
+        rule.startTime &&
+        rule.endTime
+      ) {
+        map[parseInt(rule.value)] = {
+          start: rule.startTime,
+          end: rule.endTime,
+        };
+      }
+    });
+    return map;
+  }, [availability]);
+
   const unavailableWeekdays = useMemo(() => {
     const weekdays = new Set<number>();
     availability.forEach((rule) => {
+      // Legacy weekday rules (unavailable)
       if (rule.type === "weekday") {
+        weekdays.add(parseInt(rule.value));
+      }
+      // New weekly_hours rules that are closed
+      if (rule.type === "weekly_hours" && rule.isClosed) {
         weekdays.add(parseInt(rule.value));
       }
     });
@@ -102,6 +148,12 @@ export default function Calendar() {
     // Regular user - open booking modal
     setSelectedDate(dateStr);
     setShowBookingModal(true);
+  };
+
+  const handleDayKeyDown = (e: React.KeyboardEvent, date: Date) => {
+    if (e.key === "Enter") {
+      handleDayClick(date);
+    }
   };
 
   const handleDotClick = (
@@ -156,6 +208,11 @@ export default function Calendar() {
           const inMonth = isSameMonth(date, currentMonth);
           const today = isToday(date);
           const unavailable = isDayUnavailable(date);
+          // Get custom hours for this specific date, or fall back to weekly hours
+          const dateCustomHours = customHoursMap[dateStr] || null;
+          const weeklyCustomHours = weeklyHoursMap[getDay(date)] || null;
+          const customHours =
+            dateCustomHours || (!unavailable ? weeklyCustomHours : null);
           const dayAppointments = appointmentsByDate[dateStr] || [];
           const hasAppointments = dayAppointments.length > 0;
 
@@ -190,6 +247,14 @@ export default function Calendar() {
 
               {unavailable && inMonth && (
                 <div className="w-1.5 h-1.5 rounded-full bg-red-400/60 mt-0.5" />
+              )}
+
+              {/* Show custom operating hours on the day */}
+              {customHours && inMonth && !unavailable && (
+                <span className="text-[7px] sm:text-[9px] leading-tight text-purple-300/60 mt-0.5 truncate w-full text-center">
+                  {formatTime(customHours.start).replace(/ /g, "")}–
+                  {formatTime(customHours.end).replace(/ /g, "")}
+                </span>
               )}
 
               {/* Appointment dots */}

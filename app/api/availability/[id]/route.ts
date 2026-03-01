@@ -1,5 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
-import { deleteById } from "@/lib/firebase-helpers";
+import { deleteById, updateById } from "@/lib/firebase-helpers";
+
+// PATCH update availability rule
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await request.json();
+    const { startTime, endTime, isClosed, reason } = body;
+
+    const updates: Record<string, unknown> = {};
+    if (startTime !== undefined) updates.startTime = startTime;
+    if (endTime !== undefined) updates.endTime = endTime;
+    if (isClosed !== undefined) updates.isClosed = isClosed;
+    if (reason !== undefined) updates.reason = reason;
+
+    await updateById("availability", id, updates);
+    return NextResponse.json({ success: true });
+  } catch (error: unknown) {
+    console.error("Error updating availability:", error);
+    return NextResponse.json(
+      { error: "Failed to update availability rule" },
+      { status: 500 }
+    );
+  }
+}
 
 // DELETE availability rule
 export async function DELETE(

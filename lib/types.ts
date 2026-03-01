@@ -17,9 +17,12 @@ export interface Appointment {
 export interface Availability {
   $id: string;
   $createdAt: number; // Timestamp in milliseconds
-  type: "weekday" | "specific_date";
-  value: string; // "0"-"6" for weekday (0=Sun), or "YYYY-MM-DD" for specific
+  type: "weekday" | "specific_date" | "weekly_hours" | "date_override";
+  value: string; // "0"-"6" for weekday/weekly_hours (0=Sun), or "YYYY-MM-DD" for specific/date_override
   reason: string;
+  startTime?: string; // HH:MM — opening time (for weekly_hours / date_override)
+  endTime?: string;   // HH:MM — closing time (for weekly_hours / date_override)
+  isClosed?: boolean; // true = closed that day entirely
 }
 
 export interface AppointmentFormData {

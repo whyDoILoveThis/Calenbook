@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   X,
   Clock,
@@ -8,10 +8,11 @@ import {
   Trash2,
   Image as ImageIcon,
   User,
+  AlertTriangle,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { useAppointments } from "@/hooks/useData";
-import { formatTime, isAdmin } from "@/lib/utils";
+import { formatTime, isAdmin, isTimeConflict } from "@/lib/utils";
 import { Appointment } from "@/lib/types";
 import GlassDropdown from "./GlassDropdown";
 import { format } from "date-fns";
@@ -23,6 +24,7 @@ export default function AppointmentDetail() {
     selectedAppointment,
     setSelectedAppointment,
     setShowAppointmentDetail,
+    appointments,
   } = useAppStore();
   const { deleteAppointment, updateAppointment } = useAppointments();
   const { user } = useUser();
@@ -44,6 +46,34 @@ export default function AppointmentDetail() {
     setArrivalTime(selectedAppointment?.arrivalTime || "");
     setFinishedTime(selectedAppointment?.finishedTime || "");
   }, [selectedAppointment]);
+
+  // Overlap detection for admin time editing
+  const approvedOnDate = useMemo(() => {
+    if (!selectedAppointment) return [];
+    return appointments.filter(
+      (apt) =>
+        apt.date === selectedAppointment.date &&
+        apt.status === "approved" &&
+        apt.arrivalTime &&
+        apt.finishedTime &&
+        apt.$id !== selectedAppointment.$id,
+    );
+  }, [appointments, selectedAppointment]);
+
+  const hasConflict = useMemo(() => {
+    if (!arrivalTime || !finishedTime) return false;
+    return approvedOnDate.some(
+      (apt) =>
+        apt.arrivalTime &&
+        apt.finishedTime &&
+        isTimeConflict(
+          arrivalTime,
+          finishedTime,
+          apt.arrivalTime,
+          apt.finishedTime,
+        ),
+    );
+  }, [arrivalTime, finishedTime, approvedOnDate]);
 
   if (!selectedAppointment) return null;
 
@@ -206,6 +236,12 @@ export default function AppointmentDetail() {
                   > = { status: status as Appointment["status"] };
                   if (arrivalTime) payload.arrivalTime = arrivalTime;
                   if (finishedTime) payload.finishedTime = finishedTime;
+                  if (hasConflict) {
+                    toast(
+                      "Warning: This overlaps with an existing appointment",
+                      { icon: "⚠️" },
+                    );
+                  }
                   const res = await updateAppointment(
                     selectedAppointment.$id,
                     payload as {
@@ -428,6 +464,30 @@ export default function AppointmentDetail() {
                   />
                 </div>
               </div>
+
+              {/* Overlap warning */}
+              {hasConflict && (
+                <div className="flex items-start gap-2 mt-2 text-orange-400/80 text-xs">
+                  <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                  <span>
+                    This time range overlaps with an existing appointment on
+                    this date.
+                  </span>
+                </div>
+              )}
+
+              {/* Show existing appointments on this date */}
+              {approvedOnDate.length > 0 && (
+                <div className="mt-2 text-xs text-white/30">
+                  Booked:{" "}
+                  {approvedOnDate
+                    .map(
+                      (apt) =>
+                        `${formatTime(apt.arrivalTime!)}–${formatTime(apt.finishedTime!)}`,
+                    )
+                    .join(", ")}
+                </div>
+              )}
             </div>
           ) : (
             selectedAppointment.arrivalTime && (

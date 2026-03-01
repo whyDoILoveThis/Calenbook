@@ -4,7 +4,12 @@ import { useState, useRef, useEffect } from "react";
 interface GlassDropdownProps {
   value: string;
   onChange: (value: string) => void;
-  options: { value: string; label: string }[];
+  options: {
+    value: string;
+    label: string;
+    disabled?: boolean;
+    variant?: "normal" | "red" | "yellow";
+  }[];
   placeholder?: string;
   className?: string;
   onOpenChange?: (open: boolean) => void;
@@ -68,12 +73,20 @@ export default function GlassDropdown({
               <button
                 key={opt.value}
                 type="button"
+                disabled={opt.disabled}
                 className={`block w-full text-left px-4 py-2 text-sm rounded-lg transition-all ${
-                  value === opt.value
-                    ? "bg-purple-500/30 text-purple-200"
-                    : "hover:bg-white/10 text-white/80"
+                  opt.disabled
+                    ? "opacity-40 cursor-not-allowed bg-red-500/10 text-red-400/60"
+                    : opt.variant === "red"
+                      ? "bg-red-500/10 text-red-400/80 cursor-not-allowed"
+                      : opt.variant === "yellow"
+                        ? "bg-yellow-500/10 text-yellow-300/80 hover:bg-yellow-500/20"
+                        : value === opt.value
+                          ? "bg-purple-500/30 text-purple-200"
+                          : "hover:bg-white/10 text-white/80"
                 }`}
                 onClick={() => {
+                  if (opt.disabled) return;
                   onChange(opt.value);
                   setOpen(false);
                 }}

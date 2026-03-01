@@ -22,6 +22,7 @@ import { format } from "date-fns";
 import toast from "react-hot-toast";
 
 import { useUser } from "@clerk/nextjs";
+import IconDocument from "./icons/IconDocument";
 
 export default function AdminPanel() {
   const { user } = useUser();
@@ -32,6 +33,7 @@ export default function AdminPanel() {
     setSelectedDate,
     selectedAppointment,
     setSelectedAppointment,
+    setShowBookingModal,
   } = useAppStore();
 
   const { updateAppointment, deleteAppointment } = useAppointments();
@@ -93,9 +95,11 @@ export default function AdminPanel() {
       toast.error("Please set both arrival and finished times");
       return;
     }
+    // Warn about conflict but allow admin to proceed
     if (hasConflict) {
-      toast.error("Time conflicts with an existing appointment");
-      return;
+      toast("Warning: This overlaps with an existing appointment", {
+        icon: "⚠️",
+      });
     }
 
     setProcessing(true);
@@ -165,12 +169,23 @@ export default function AdminPanel() {
       />
 
       <div className="glass-panel relative w-full max-w-2xl max-h-[90vh] overflow-y-auto z-10 rounded-2xl p-6">
-        <button
-          onClick={handleClose}
-          className="absolute top-4 right-4 glass-button p-1.5 rounded-lg"
-        >
-          <X className="w-4 h-4" />
-        </button>
+        <div className="absolute top-4 right-4 flex gap-6">
+          <button
+            onClick={() => {
+              setShowBookingModal(true);
+              setShowAdminPanel(false);
+            }}
+            className="glass-button p-1.5 rounded-lg"
+          >
+            <IconDocument />
+          </button>
+          <button
+            onClick={handleClose}
+            className="glass-button p-1.5 rounded-lg"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
 
         {view === "list" ? (
           <>
@@ -528,16 +543,16 @@ export default function AdminPanel() {
                     </div>
 
                     {hasConflict && (
-                      <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 text-sm text-red-300">
-                        ⚠️ This time range conflicts with an existing
-                        appointment. Please select a different time.
+                      <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-3 text-sm text-orange-300">
+                        ⚠️ This time range overlaps with an existing
+                        appointment.
                       </div>
                     )}
 
                     <div className="flex gap-3">
                       <button
                         onClick={handleApprove}
-                        disabled={processing || hasConflict}
+                        disabled={processing}
                         className="flex-1 primary-button py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-40"
                       >
                         <Check className="w-4 h-4" />

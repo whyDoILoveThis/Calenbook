@@ -1,30 +1,147 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import GlassDropdown from "./GlassDropdown";
-import { X, Upload, Clock, FileText, Image as ImageIcon } from "lucide-react";
+import { X, Upload, Clock, FileText, Image as ImageIcon, AlertTriangle } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { useAppointments } from "@/hooks/useData";
 import { useUser } from "@clerk/nextjs";
-import { format } from "date-fns";
+import { format, getDay } from "date-fns";
 import toast from "react-hot-toast";
-import { isAdmin } from "@/lib/utils";
+import { isAdmin, formatTime, timeToMinutes } from "@/lib/utils";
+import IconList from "./icons/IconList";
 
 export default function BookingModal() {
-  const { selectedDate, setShowBookingModal, setSelectedDate, appointments } =
-    useAppStore();
+  const {
+    selectedDate,
+    setShowBookingModal,
+    setSelectedDate,
+    appointments,
+    availability,
+    setShowAdminPanel,
+  } = useAppStore();
   const { createAppointment } = useAppointments();
   const { user } = useUser();
 
-  const [requestedTime, setRequestedTime] = useState("");
-  const [hour, setHour] = useState("12");
-  const [minute, setMinute] = useState("00");
-  const [ampm, setAmpm] = useState("PM");
+  const [selectedTime, setSelectedTime] = useState("");
+  const [ampm, setAmpm] = useState<"AM" | "PM">("AM");
   const [description, setDescription] = useState("");
   const [images, setImages] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [showMyAppointments, setShowMyAppointments] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const userIsAdmin = isAdmin(user?.id);
+  const hasTooManyAppointments = !userIsAdmin && appointments.filter(
+    (apt) =>
+      apt.userId === user?.id &&
+      (apt.status === "pending" || apt.status === "approved"),
+  ).length >= 3;
+
+  // Get approved appointments on the selected date for overlap checking
+  const approvedOnDate = useMemo(() => {
+    if (!selectedDate) return [];
+    return appointments.filter(
+      (apt) =>
+        apt.date === selectedDate &&
+        apt.status === "approved" &&
+        apt.arrivalTime &&
+        apt.finishedTime,
+    );
+  }, [appointments, selectedDate]);
+
+  // Determine operating hours for the selected date
+  const operatingHours = useMemo<{ start: string; end: string } | "closed" | null>(() => {
+    if (!selectedDate) return null;
+    const dateObj = new Date(selectedDate + "T00:00:00");
+    const dayOfWeek = getDay(dateObj); // 0=Sun … 6=Sat
+
+    // 1. Check for a date_override matching this exact date
+    const dateOverride = availability.find(
+      (r) => r.type === "date_override" && r.value === selectedDate,
+    );
+    if (dateOverride) {
+      if (dateOverride.isClosed) return "closed";
+      if (dateOverride.startTime && dateOverride.endTime) {
+        return { start: dateOverride.startTime, end: dateOverride.endTime };
+      }
+    }
+
+    // 2. Check for legacy specific_date (unavailable) rule
+    const legacyDate = availability.find(
+      (r) => r.type === "specific_date" && r.value === selectedDate,
+    );
+    if (legacyDate) return "closed";
+
+    // 3. Check for weekly_hours for this weekday
+    const weeklyRule = availability.find(
+      (r) => r.type === "weekly_hours" && r.value === String(dayOfWeek),
+    );
+    if (weeklyRule) {
+      if (weeklyRule.isClosed) return "closed";
+      if (weeklyRule.startTime && weeklyRule.endTime) {
+        return { start: weeklyRule.startTime, end: weeklyRule.endTime };
+      }
+    }
+
+    // 4. Check legacy weekday unavailability
+    const legacyWeekday = availability.find(
+      (r) => r.type === "weekday" && r.value === String(dayOfWeek),
+    );
+    if (legacyWeekday) return "closed";
+
+    // No rules → no restrictions
+    return null;
+  }, [selectedDate, availability]);
+
+  // Build 30-min time slot options filtered by AM/PM
+  const timeSlotOptions = useMemo(() => {
+    const slots: { value: string; label: string; disabled?: boolean; variant?: "normal" | "red" | "yellow" }[] = [];
+
+    const startH = ampm === "AM" ? 0 : 12;
+    const endH = ampm === "AM" ? 12 : 24;
+
+    for (let h = startH; h < endH; h++) {
+      for (let m = 0; m < 60; m += 30) {
+        const time24 = `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
+        const label = formatTime(time24);
+
+        let outsideHours = false;
+        if (operatingHours === "closed") {
+          outsideHours = true;
+        } else if (operatingHours) {
+          const slotMins = timeToMinutes(time24);
+          const openMins = timeToMinutes(operatingHours.start);
+          const closeMins = timeToMinutes(operatingHours.end);
+          outsideHours = slotMins < openMins || slotMins >= closeMins;
+        }
+
+        if (outsideHours) {
+          slots.push({
+            value: time24,
+            label,
+            disabled: !userIsAdmin,
+            variant: userIsAdmin ? "yellow" : "red",
+          });
+        } else {
+          slots.push({ value: time24, label });
+        }
+      }
+    }
+    return slots;
+  }, [operatingHours, userIsAdmin, ampm]);
+
+  // Check for overlap with existing approved appointments
+  const timeOverlap = useMemo(() => {
+    if (!selectedTime) return null;
+    const selectedMinutes = timeToMinutes(selectedTime);
+    return approvedOnDate.find((apt) => {
+      const start = timeToMinutes(apt.arrivalTime!);
+      const end = timeToMinutes(apt.finishedTime!);
+      return selectedMinutes >= start && selectedMinutes < end;
+    }) ?? null;
+  }, [selectedTime, approvedOnDate]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -60,25 +177,24 @@ export default function BookingModal() {
           apt.userId === user?.id &&
           (apt.status === "pending" || apt.status === "approved"),
       ).length;
-      if (activeCount >= 2) {
+      if (activeCount >= 3) {
         toast.error(
-          "You cannot have more than 2 active appointments or requests at a time.",
+          "You cannot have more than 3 active appointments or requests at a time.",
         );
         return;
       }
     }
 
-    // Compose requestedTime from hour, minute, ampm
-    let time = requestedTime;
+    // Compose requestedTime from unified selector
+    const time = selectedTime;
     if (!time) {
-      if (!hour || !minute || !ampm) {
-        toast.error("Please select an arrival time");
-        return;
-      }
-      let h = parseInt(hour);
-      if (ampm === "PM" && h !== 12) h += 12;
-      if (ampm === "AM" && h === 12) h = 0;
-      time = `${h.toString().padStart(2, "0")}:${minute}`;
+      toast.error("Please select an arrival time");
+      return;
+    }
+    // Block if time overlaps with existing appointment (non-admin only)
+    if (!userIsAdmin && timeOverlap) {
+      toast.error("Selected time overlaps with an existing appointment");
+      return;
     }
     if (!description.trim()) {
       toast.error("Please add a description");
@@ -127,6 +243,65 @@ export default function BookingModal() {
     "EEEE, MMMM d, yyyy",
   );
 
+  // If user is maxed out, show only the appointments list
+  if (hasTooManyAppointments) {
+    const userAppointments = appointments.filter(
+      (apt) => apt.date === selectedDate && apt.userId === user?.id,
+    );
+
+    const handleMaxedClose = () => {
+      setShowBookingModal(false);
+      setSelectedDate(null);
+    };
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div
+          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          onClick={handleMaxedClose}
+        />
+        <div className="glass-panel relative w-full max-w-sm rounded-2xl p-6 z-10">
+          <button
+            onClick={handleMaxedClose}
+            className="absolute top-4 right-4 glass-button p-1.5 rounded-lg"
+          >
+            <X className="w-4 h-4" />
+          </button>
+
+          <h2 className="text-lg font-light text-white/90 mb-1">
+            Your Appointments
+          </h2>
+          <p className="text-sm text-white/40 mb-4">{displayDate}</p>
+
+          <div className="space-y-2">
+            {userAppointments.map((apt) => (
+              <div
+                key={apt.$id}
+                className="glass-button p-3 rounded-lg flex items-center gap-2"
+              >
+                <Clock className="w-4 h-4 text-white/60" />
+                <span className="text-white/80">
+                  {apt.requestedTime}
+                  {apt.finishedTime && ` - ${apt.finishedTime}`}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {userAppointments.length === 0 && (
+            <p className="text-white/40 text-sm">
+              No appointments scheduled for this date.
+            </p>
+          )}
+
+          <p className="text-orange-400/50 text-xs mt-4">
+            You&apos;ve reached the maximum of 3 active appointments. Cancel or complete existing ones to book more.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
@@ -138,12 +313,31 @@ export default function BookingModal() {
       {/* Modal */}
       <div className="glass-panel relative w-full max-w-lg max-h-[90vh] overflow-y-auto z-10 rounded-2xl p-6">
         {/* Close button */}
-        <button
-          onClick={handleClose}
-          className="absolute top-4 right-4 glass-button p-1.5 rounded-lg"
-        >
-          <X className="w-4 h-4" />
-        </button>
+        <div className="absolute top-4 right-4 flex gap-6">
+          {/* Show list button only if this date has appointments */}
+          {appointments.filter((apt) => apt.date === selectedDate).length > 0 && (
+            <button
+              onClick={() => {
+                const userIsAdmin = isAdmin(user?.id);
+                if (userIsAdmin) {
+                  setShowAdminPanel(true);
+                  setShowBookingModal(false);
+                } else {
+                  setShowMyAppointments(true);
+                }
+              }}
+              className="glass-button p-1.5 rounded-lg"
+            >
+              <IconList size={16} />
+            </button>
+          )}
+          <button
+            onClick={handleClose}
+            className="glass-button p-1.5 rounded-lg"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
 
         <h2 className="text-xl font-light text-white/90 mb-1">
           Request Appointment
@@ -159,49 +353,69 @@ export default function BookingModal() {
             </label>
             <div className="flex gap-2 items-center">
               <GlassDropdown
-                value={hour}
-                onChange={(v) => {
-                  setHour(v);
-                  setRequestedTime("");
-                }}
+                value={selectedTime}
+                onChange={setSelectedTime}
                 options={[
-                  { value: "", label: "HRS" },
-                  ...Array.from({ length: 12 }, (_, i) => ({
-                    value: String(i + 1).padStart(2, "0"),
-                    label: String(i + 1).padStart(2, "0"),
-                  })),
+                  { value: "", label: "Select a time" },
+                  ...timeSlotOptions,
                 ]}
-                className="min-w-16"
+                placeholder="Select a time"
+                className="flex-1"
               />
-              <span className="text-white/40">:</span>
-              <GlassDropdown
-                value={minute}
-                onChange={(v) => {
-                  setMinute(v);
-                  setRequestedTime("");
-                }}
-                options={[
-                  { value: "", label: "MM" },
-                  ...["00", "15", "30", "45"].map((m) => ({
-                    value: m,
-                    label: m,
-                  })),
-                ]}
-                className="min-w-16"
-              />
-              <GlassDropdown
-                value={ampm}
-                onChange={(v) => {
-                  setAmpm(v);
-                  setRequestedTime("");
-                }}
-                options={[
-                  { value: "AM", label: "AM" },
-                  { value: "PM", label: "PM" },
-                ]}
-                className="min-w-16"
-              />
+              <div className="flex rounded-xl overflow-hidden border border-purple-400/20">
+                <button
+                  type="button"
+                  onClick={() => { setAmpm("AM"); setSelectedTime(""); }}
+                  className={`px-3 py-2 text-sm font-medium transition-all ${
+                    ampm === "AM"
+                      ? "bg-purple-500/30 text-purple-200"
+                      : "bg-white/5 text-white/50 hover:bg-white/10"
+                  }`}
+                >
+                  AM
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setAmpm("PM"); setSelectedTime(""); }}
+                  className={`px-3 py-2 text-sm font-medium transition-all ${
+                    ampm === "PM"
+                      ? "bg-purple-500/30 text-purple-200"
+                      : "bg-white/5 text-white/50 hover:bg-white/10"
+                  }`}
+                >
+                  PM
+                </button>
+              </div>
             </div>
+
+            {/* Operating hours info */}
+            {operatingHours && operatingHours !== "closed" && (
+              <p className="mt-1.5 text-xs text-white/30">
+                Hours of operation: {formatTime(operatingHours.start)} – {formatTime(operatingHours.end)}
+              </p>
+            )}
+            {operatingHours === "closed" && (
+              <p className="mt-1.5 text-xs text-red-400/60">
+                This day is marked as closed
+              </p>
+            )}
+
+            {/* Overlap warning */}
+            {timeOverlap && (
+              <div className="flex items-start gap-2 mt-2 text-red-400/80 text-xs">
+                <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                <span>
+                  This time overlaps with an existing appointment ({formatTime(timeOverlap.arrivalTime!)} – {formatTime(timeOverlap.finishedTime!)})
+                </span>
+              </div>
+            )}
+
+            {/* Show existing appointments on this date */}
+            {approvedOnDate.length > 0 && !timeOverlap && (
+              <div className="mt-2 text-xs text-white/30">
+                Booked: {approvedOnDate.map((apt) => `${formatTime(apt.arrivalTime!)}–${formatTime(apt.finishedTime!)}`).join(", ")}
+              </div>
+            )}
           </div>
 
           {/* Description */}
@@ -273,7 +487,7 @@ export default function BookingModal() {
           {/* Submit */}
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || !!timeOverlap}
             className="w-full primary-button py-3 rounded-xl text-sm font-medium transition-all duration-200"
           >
             {submitting ? (
@@ -287,6 +501,55 @@ export default function BookingModal() {
           </button>
         </form>
       </div>
+
+      {/* My Appointments List Modal (for non-admin users) */}
+      {showMyAppointments && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowMyAppointments(false)}
+          />
+          <div className="glass-panel relative w-full max-w-sm rounded-2xl p-6 z-10">
+            <button
+              onClick={() => setShowMyAppointments(false)}
+              className="absolute top-4 right-4 glass-button p-1.5 rounded-lg"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <h2 className="text-lg font-light text-white/90 mb-4">
+              Your Appointments
+            </h2>
+
+            <div className="space-y-2">
+              {appointments
+                .filter(
+                  (apt) => apt.date === selectedDate && apt.userId === user?.id,
+                )
+                .map((apt) => (
+                  <div
+                    key={apt.$id}
+                    className="glass-button p-3 rounded-lg flex items-center gap-2"
+                  >
+                    <Clock className="w-4 h-4 text-white/60" />
+                    <span className="text-white/80">
+                      {apt.requestedTime}
+                      {apt.finishedTime && ` - ${apt.finishedTime}`}
+                    </span>
+                  </div>
+                ))}
+            </div>
+
+            {appointments.filter(
+              (apt) => apt.date === selectedDate && apt.userId === user?.id,
+            ).length === 0 && (
+              <p className="text-white/40 text-sm">
+                No appointments scheduled for this date.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

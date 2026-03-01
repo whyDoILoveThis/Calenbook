@@ -20,9 +20,9 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { type, value, reason } = body;
+    const { type, value, reason, startTime, endTime, isClosed } = body;
 
-        // Check if rule already exists
+    // Check if rule already exists (for weekly_hours, one per day; for date_override, one per date)
     const all = await getAll("availability");
     if ((all as Availability[])
         .some((rule) => rule.type === type && rule.value === value)) {
@@ -32,7 +32,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const ruleData = { createdAt: Date.now(), type, value, reason };
+    const ruleData: Record<string, unknown> = {
+      createdAt: Date.now(),
+      type,
+      value,
+      reason: reason || "",
+    };
+
+    // Include hours fields for weekly_hours and date_override types
+    if (type === "weekly_hours" || type === "date_override") {
+      ruleData.startTime = startTime || "";
+      ruleData.endTime = endTime || "";
+      ruleData.isClosed = !!isClosed;
+    }
+
     const rule = await createWithAutoId("availability", ruleData);
     // Add $id to response only (not saved in Firebase)
     return NextResponse.json({ availability: { ...ruleData, $id: rule.$id || "" } }, { status: 201 });
