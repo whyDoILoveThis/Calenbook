@@ -17,18 +17,29 @@ export function useAppointments() {
     const dbRef = ref(db, "appointments");
     const callback = (snapshot: DataSnapshot) => {
       const exists = snapshot.exists();
+      
+      // Never clear on non-existent snapshots - always preserve existing data
       if (!exists) {
         console.warn("[TRACE] Realtime snapshot missing; preserving local appointments (transient).");
         setLoading(false);
         return;
       }
       const raw = snapshot.val();
+      let count = 0;
       try {
-        const count = raw ? Object.keys(raw).length : 0;
+        count = raw ? Object.keys(raw).length : 0;
         console.log("[TRACE] Realtime snapshot items:", count);
-      } catch (e) {
+      } catch {
         console.log("[TRACE] Realtime snapshot received (non-object)");
       }
+      
+      // If snapshot is empty, always preserve local data instead of clearing
+      if (count === 0) {
+        console.warn("[TRACE] Realtime snapshot is empty; preserving existing appointments.");
+        setLoading(false);
+        return;
+      }
+
       const appointments = Object.entries(raw || {}).map(([key, value]) => ({ ...(value as Record<string, unknown>), $id: key })) as unknown[];
 
       const normalizeStatus = (s: unknown) =>
@@ -67,6 +78,8 @@ export function useAppointments() {
 
       filtered = filtered.sort((a, b) => createdAtValue(b) - createdAtValue(a));
 
+      // Always update when we have actual data, even if filtered is empty (legitimate for that month)
+      // But only if we have data from the database
       setAppointments(filtered as Appointment[]);
       setLoading(false);
     };
@@ -133,8 +146,10 @@ export function useAppointments() {
     [setAppointments, setLoading]
   );
 
-  const createAppointment = useCallback(
+    const createAppointment = useCallback(
     async (formData: FormData): Promise<{ success: boolean; warning?: string }> => {
+      // mark pending write for a longer window so realtime listener won't clear on transient state
+      useAppStore.getState().setPendingWriteUntil(Date.now() + 5000);
       try {
           const res = await fetch("/api/appointments", {
             method: "POST",
@@ -145,20 +160,27 @@ export function useAppointments() {
           if (!res.ok) {
             throw new Error(data.error || "Failed to create appointment");
           }
+          // Wait a bit for Firebase to sync before clearing pending flag
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          useAppStore.getState().setPendingWriteUntil(null);
           return { success: true, warning: data.warning };
         } catch (error) {
           console.error("Failed to create appointment:", error);
+          // Clear pending flag on error
+          useAppStore.getState().setPendingWriteUntil(null);
           throw error;
         }
     },
     []
   );
 
-  const updateAppointment = useCallback(
+    const updateAppointment = useCallback(
     async (
       id: string,
       data: { status: string; arrivalTime?: string; finishedTime?: string }
     ): Promise<{ success: boolean; error?: string }> => {
+      // mark pending write so realtime listener won't clear on transient empty snapshot
+      useAppStore.getState().setPendingWriteUntil(Date.now() + 5000);
       try {
           const res = await fetch(`/api/appointments/${id}`, {
             method: "PATCH",
@@ -169,6 +191,7 @@ export function useAppointments() {
           const result = (await res.json().catch(() => ({}))) as UpdateResp;
           console.log("[TRACE] updateAppointment response:", res.status, result);
           if (!res.ok) {
+            useAppStore.getState().setPendingWriteUntil(null);
             return { success: false, error: result.error };
           }
         // Optimistically update local store so UI reflects change immediately
@@ -192,24 +215,34 @@ export function useAppointments() {
         } catch (e) {
           console.warn("[TRACE] Failed to optimistically update appointments:", e);
         }
+        // Wait a bit for Firebase to sync before clearing pending flag
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        useAppStore.getState().setPendingWriteUntil(null);
         return { success: true };
       } catch (error) {
         console.error("Failed to update appointment:", error);
+        useAppStore.getState().setPendingWriteUntil(null);
         return { success: false, error: "Network error" };
       }
     },
     []
   );
 
-  const deleteAppointment = useCallback(async (id: string, userId: string) => {
+    const deleteAppointment = useCallback(async (id: string, userId: string) => {
+    useAppStore.getState().setPendingWriteUntil(Date.now() + 5000);
     try {
       const res = await fetch(`/api/appointments/${id}?userId=${userId}`, { method: "DELETE" });
       if (!res.ok) {
         const data = await res.json();
+        useAppStore.getState().setPendingWriteUntil(null);
         throw new Error(data.error || "Failed to delete");
       }
+      // Wait a bit for Firebase to sync before clearing pending flag
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      useAppStore.getState().setPendingWriteUntil(null);
     } catch (error) {
       console.error("Failed to delete appointment:", error);
+      useAppStore.getState().setPendingWriteUntil(null);
       throw error;
     }
   }, []);

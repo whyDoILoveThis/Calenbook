@@ -30,8 +30,10 @@ export default function Home() {
   useEffect(() => {
     if (!isLoaded) return;
     const monthStr = format(currentMonth, "yyyy-MM");
+    console.log("[TRACE] Setting up listener for month:", monthStr);
     const unsubscribe = listenAppointments(monthStr);
     return () => {
+      console.log("[TRACE] Cleaning up listener for month:", monthStr);
       if (unsubscribe) unsubscribe();
     };
   }, [isLoaded, currentMonth, listenAppointments]);

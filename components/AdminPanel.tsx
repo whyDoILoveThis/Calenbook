@@ -32,11 +32,9 @@ export default function AdminPanel() {
     setSelectedDate,
     selectedAppointment,
     setSelectedAppointment,
-    currentMonth,
   } = useAppStore();
 
-  const { updateAppointment, deleteAppointment, fetchAppointments } =
-    useAppointments();
+  const { updateAppointment, deleteAppointment } = useAppointments();
 
   const [arrivalTime, setArrivalTime] = useState("");
   const [finishedTime, setFinishedTime] = useState("");
@@ -109,7 +107,6 @@ export default function AdminPanel() {
       });
       if (result.success) {
         toast.success("Appointment approved!");
-        await fetchAppointments(format(currentMonth, "yyyy-MM"));
         setView("list");
         setSelectedAppointment(null);
       } else {
@@ -131,7 +128,6 @@ export default function AdminPanel() {
       });
       if (result.success) {
         toast.success("Appointment rejected");
-        await fetchAppointments(format(currentMonth, "yyyy-MM"));
         setView("list");
         setSelectedAppointment(null);
       } else {
@@ -150,7 +146,6 @@ export default function AdminPanel() {
     try {
       await deleteAppointment(selectedAppointment.$id, user.id);
       toast.success("Appointment deleted");
-      await fetchAppointments(format(currentMonth, "yyyy-MM"));
       setView("list");
       setSelectedAppointment(null);
     } catch (error) {

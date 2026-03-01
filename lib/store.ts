@@ -14,6 +14,8 @@ interface AppState {
   showAppointmentDetail: boolean;
   selectedAppointment: Appointment | null;
   loading: boolean;
+  // Timestamp (ms) until which realtime listener should treat empty snapshots as transient
+  pendingWriteUntil: number | null;
 
   setAppointments: (appointments: Appointment[]) => void;
   setAvailability: (availability: Availability[]) => void;
@@ -25,6 +27,7 @@ interface AppState {
   setShowAppointmentDetail: (show: boolean) => void;
   setSelectedAppointment: (appointment: Appointment | null) => void;
   setLoading: (loading: boolean) => void;
+  setPendingWriteUntil: (ts: number | null) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -38,6 +41,7 @@ export const useAppStore = create<AppState>((set) => ({
   showAppointmentDetail: false,
   selectedAppointment: null,
   loading: false,
+  pendingWriteUntil: null,
 
   setAppointments: (appointments) => set({ appointments }),
   setAvailability: (availability) => set({ availability }),
@@ -52,4 +56,5 @@ export const useAppStore = create<AppState>((set) => ({
   setSelectedAppointment: (selectedAppointment) =>
     set({ selectedAppointment }),
   setLoading: (loading) => set({ loading }),
+  setPendingWriteUntil: (pendingWriteUntil) => set({ pendingWriteUntil }),
 }));

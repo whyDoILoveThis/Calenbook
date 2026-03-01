@@ -8,16 +8,12 @@ import { useAppointments } from "@/hooks/useData";
 import { useUser } from "@clerk/nextjs";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
+import { isAdmin } from "@/lib/utils";
 
 export default function BookingModal() {
-  const {
-    selectedDate,
-    setShowBookingModal,
-    setSelectedDate,
-    currentMonth,
-    appointments,
-  } = useAppStore();
-  const { createAppointment, fetchAppointments } = useAppointments();
+  const { selectedDate, setShowBookingModal, setSelectedDate, appointments } =
+    useAppStore();
+  const { createAppointment } = useAppointments();
   const { user } = useUser();
 
   const [requestedTime, setRequestedTime] = useState("");
@@ -56,17 +52,20 @@ export default function BookingModal() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Prevent more than 2 active appointments/requests
-    const activeCount = appointments.filter(
-      (apt) =>
-        apt.userId === user?.id &&
-        (apt.status === "pending" || apt.status === "approved"),
-    ).length;
-    if (activeCount >= 2) {
-      toast.error(
-        "You cannot have more than 2 active appointments or requests at a time.",
-      );
-      return;
+    // Prevent more than 2 active appointments/requests (admins have no limit)
+    const userIsAdmin = isAdmin(user?.id);
+    if (!userIsAdmin) {
+      const activeCount = appointments.filter(
+        (apt) =>
+          apt.userId === user?.id &&
+          (apt.status === "pending" || apt.status === "approved"),
+      ).length;
+      if (activeCount >= 2) {
+        toast.error(
+          "You cannot have more than 2 active appointments or requests at a time.",
+        );
+        return;
+      }
     }
 
     // Compose requestedTime from hour, minute, ampm
@@ -110,7 +109,6 @@ export default function BookingModal() {
         toast.error(result.warning);
       }
       handleClose();
-      fetchAppointments(format(currentMonth, "yyyy-MM"));
     } catch (error) {
       const message =
         error instanceof Error

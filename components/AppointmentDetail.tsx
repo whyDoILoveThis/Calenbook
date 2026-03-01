@@ -23,10 +23,8 @@ export default function AppointmentDetail() {
     selectedAppointment,
     setSelectedAppointment,
     setShowAppointmentDetail,
-    currentMonth,
   } = useAppStore();
-  const { deleteAppointment, fetchAppointments, updateAppointment } =
-    useAppointments();
+  const { deleteAppointment, updateAppointment } = useAppointments();
   const { user } = useUser();
   const [processing, setProcessing] = useState(false);
   const [status, setStatus] = useState<
@@ -64,7 +62,6 @@ export default function AppointmentDetail() {
     try {
       await deleteAppointment(selectedAppointment.$id, user.id);
       toast.success("Appointment cancelled");
-      await fetchAppointments(format(currentMonth, "yyyy-MM"));
       setSelectedAppointment(null);
       setShowAppointmentDetail(false);
     } catch (error) {
