@@ -18,6 +18,7 @@ import {
   isAdmin,
   isTimeConflict,
   getOperatingHours,
+  toProxyUrl,
 } from "@/lib/utils";
 import { Appointment } from "@/lib/types";
 import GlassDropdown from "./GlassDropdown";
@@ -246,6 +247,7 @@ export default function AppointmentDetail() {
           </div>
         </div>
 
+        {/**TODO:if the user is an admin and the save button is pressed they should be promted with the same modal for sending sms or email or both or nothing at all with twilio */}
         {/* Status */}
         <div className="mb-4">
           {userIsAdmin ? (
@@ -522,16 +524,7 @@ export default function AppointmentDetail() {
               </label>
               <div className="grid grid-cols-2 gap-2">
                 {selectedAppointment.imageUrls.map((url, i) => {
-                  // convert any /preview URLs to /view (free plan cannot transform)
-                  let displayUrl = url;
-                  try {
-                    if (displayUrl.includes("/preview")) {
-                      const u = new URL(displayUrl);
-                      const project = u.searchParams.get("project");
-                      displayUrl = displayUrl.split("/preview")[0] + "/view";
-                      if (project) displayUrl += `?project=${project}`;
-                    }
-                  } catch {}
+                  const displayUrl = toProxyUrl(url);
                   return (
                     <a
                       key={i}

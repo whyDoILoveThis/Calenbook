@@ -20,7 +20,12 @@ import {
 import { useAppStore } from "@/lib/store";
 import { useAppointments } from "@/hooks/useData";
 import { Appointment } from "@/lib/types";
-import { formatTime, isTimeConflict, getOperatingHours } from "@/lib/utils";
+import {
+  formatTime,
+  isTimeConflict,
+  getOperatingHours,
+  toProxyUrl,
+} from "@/lib/utils";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
 
@@ -391,13 +396,13 @@ export default function AdminPanel() {
                         {selectedAppointment.imageUrls.map((url, i) => (
                           <a
                             key={i}
-                            href={url}
+                            href={toProxyUrl(url)}
                             target="_blank"
                             rel="noopener noreferrer"
                           >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
-                              src={url}
+                              src={toProxyUrl(url)}
                               alt="Reference"
                               className="w-full h-40 object-contain rounded-lg hover:opacity-80 transition-opacity"
                             />

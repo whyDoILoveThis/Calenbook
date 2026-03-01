@@ -100,3 +100,22 @@ export function getOperatingHours(
 
   return null;
 }
+
+/**
+ * Converts any image URL to the local proxy path.
+ * - Already-proxied URLs (`/api/images/...`) pass through unchanged.
+ * - Legacy Appwrite URLs are converted using the file ID extracted from the path.
+ */
+export function toProxyUrl(url: string): string {
+  // Already a proxy URL
+  if (url.startsWith("/api/images/")) return url;
+
+  // Extract file ID from Appwrite URL pattern: .../files/{fileId}/view or /preview
+  const match = url.match(/\/files\/([^/]+)\/(view|preview)/);
+  if (match) {
+    return `/api/images/${match[1]}`;
+  }
+
+  // Fallback: return as-is
+  return url;
+}

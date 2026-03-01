@@ -54,8 +54,6 @@ export async function POST(request: NextRequest) {
     const images = (formData.getAll("images") as unknown) as File[];
     const imageIds: string[] = [];
     const imageUrls: string[] = [];
-    const endpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || "";
-    const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || "";
 
     let uploadFailed = false;
     for (const image of images) {
@@ -65,9 +63,8 @@ export async function POST(request: NextRequest) {
           const file = InputFile.fromBuffer(buffer, image.name || "upload.jpg");
           const uploaded = await storage.createFile(BUCKET_ID, ID.unique(), file);
           imageIds.push(uploaded.$id);
-          // direct view URL (no transformations)
-          const url = `${endpoint}/storage/buckets/${BUCKET_ID}/files/${uploaded.$id}/view?project=${projectId}`;
-          imageUrls.push(url);
+          // Use proxy URL so Appwrite endpoint is never exposed to clients
+          imageUrls.push(`/api/images/${uploaded.$id}`);
         } catch (err) {
           console.error("Image upload failed:", err);
           // don't abort; we'll still create the appointment but record a warning

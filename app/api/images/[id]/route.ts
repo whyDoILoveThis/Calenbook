@@ -7,8 +7,26 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const result = storage.getFilePreview(BUCKET_ID, id);
-    return NextResponse.redirect(result.toString());
+
+    // Fetch the actual file bytes from Appwrite
+    const buffer = await storage.getFileView(BUCKET_ID, id);
+
+    // Determine content type from the file metadata
+    let contentType = "image/jpeg";
+    try {
+      const meta = await storage.getFile(BUCKET_ID, id);
+      if (meta.mimeType) contentType = meta.mimeType;
+    } catch {
+      // Fallback to jpeg if metadata fetch fails
+    }
+
+    return new NextResponse(Buffer.from(buffer), {
+      status: 200,
+      headers: {
+        "Content-Type": contentType,
+        "Cache-Control": "public, max-age=31536000, immutable",
+      },
+    });
   } catch (error: unknown) {
     console.error("Error fetching image:", error);
     return NextResponse.json(
