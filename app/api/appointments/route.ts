@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
     const date = formData.get("date") as string;
     const requestedTime = formData.get("requestedTime") as string;
     const description = formData.get("description") as string;
+    const color = (formData.get("color") as string) || "#60A5FA"; // default blue
 
     // Images: upload to Appwrite, store fileId and view URL in Firebase
     const images = (formData.getAll("images") as unknown) as File[];
@@ -111,6 +112,7 @@ export async function POST(request: NextRequest) {
       arrivalTime: null,
       finishedTime: null,
       description,
+      color,
       imageIds,
       imageUrls,
       status: "pending",

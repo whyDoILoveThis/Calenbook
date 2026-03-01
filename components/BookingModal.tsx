@@ -17,6 +17,7 @@ import { format } from "date-fns";
 import toast from "react-hot-toast";
 import { isAdmin, formatTime, timeToMinutes, getOperatingHours } from "@/lib/utils";
 import IconList from "./icons/IconList";
+import ColorDotSelector, { DEFAULT_DOT_COLOR } from "./ColorDotSelector";
 
 export default function BookingModal() {
   const {
@@ -39,6 +40,7 @@ export default function BookingModal() {
   const [previews, setPreviews] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [showMyAppointments, setShowMyAppointments] = useState(false);
+  const [dotColor, setDotColor] = useState<string>(DEFAULT_DOT_COLOR);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const userIsAdmin = isAdmin(user?.id);
@@ -196,6 +198,7 @@ export default function BookingModal() {
       formData.append("date", selectedDate!);
       formData.append("requestedTime", time);
       formData.append("description", description);
+      formData.append("color", dotColor);
 
       images.forEach((image) => {
         formData.append("images", image);
@@ -434,6 +437,18 @@ export default function BookingModal() {
                   .join(", ")}
               </div>
             )}
+          </div>
+
+          {/* Dot Color */}
+          <div>
+            <label className="flex items-center gap-2 text-sm font-medium text-white/60 mb-2">
+              <span
+                className="w-4 h-4 rounded-full border border-white/30 inline-block"
+                style={{ backgroundColor: dotColor }}
+              />
+              Dot Color
+            </label>
+            <ColorDotSelector value={dotColor} onChange={setDotColor} />
           </div>
 
           {/* Description */}

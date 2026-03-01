@@ -211,46 +211,69 @@ export default function Calendar() {
               {/* Appointment dots */}
               {hasAppointments && inMonth && (
                 <div className="flex flex-wrap gap-0.5 sm:gap-1 mt-auto w-full">
-                  {dayAppointments.slice(0, 5).map((apt, idx) => (
-                    <div
-                      key={apt.$id || idx}
-                      role="button"
-                      tabIndex={0}
-                      onClick={(e) => handleDotClick(e, apt)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter")
-                          handleDotClick(e as unknown as React.MouseEvent, apt);
-                      }}
-                      className={`transition-all duration-200 hover:scale-150 cursor-pointer ${
-                        apt.status === "completed"
-                          ? "text-emerald-400"
-                          : "w-1.5 h-1.5 sm:w-2.5 sm:h-2.5 rounded-full"
-                      }`}
-                      title={`${apt.arrivalTime || apt.requestedTime} - ${apt.finishedTime || ""}`}
-                      style={
-                        apt.status === "completed"
-                          ? {}
-                          : {
-                              backgroundColor:
-                                apt.status === "approved"
-                                  ? "rgb(52,211,153)"
-                                  : apt.status === "rejected"
-                                    ? "rgb(248,113,113)"
-                                    : "rgba(255,255,255,0.3)",
-                              boxShadow:
-                                apt.status === "approved"
-                                  ? "0 0 6px rgba(52,211,153,0.5)"
-                                  : apt.status === "rejected"
-                                    ? "0 0 6px rgba(248,113,113,0.3)"
-                                    : "none",
-                            }
-                      }
-                    >
-                      {apt.status === "completed" && (
-                        <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
-                      )}
-                    </div>
-                  ))}
+                  {dayAppointments.slice(0, 5).map((apt, idx) => {
+                    const dotColor = apt.color || "rgba(255,255,255,0.3)";
+                    const isCompleted = apt.status === "completed";
+                    const statusDotColor =
+                      apt.status === "approved"
+                        ? "rgb(52,211,153)"      // green
+                        : apt.status === "rejected"
+                          ? "rgb(248,113,113)"    // red
+                          : "rgba(255,255,255,0.6)"; // pending – subtle white
+
+                    return (
+                      <div
+                        key={apt.$id || idx}
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => handleDotClick(e, apt)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter")
+                            handleDotClick(
+                              e as unknown as React.MouseEvent,
+                              apt,
+                            );
+                        }}
+                        className="transition-all duration-200 hover:scale-150 cursor-pointer relative flex items-center justify-center"
+                        title={`${apt.arrivalTime || apt.requestedTime} - ${apt.finishedTime || ""}`}
+                        style={
+                          isCompleted
+                            ? {
+                                width: "clamp(14px, 3vw, 22px)",
+                                height: "clamp(14px, 3vw, 22px)",
+                              }
+                            : {
+                                width: "clamp(12px, 3vw, 16px)",
+                                height: "clamp(12px, 3vw, 16px)",
+                                borderRadius: "9999px",
+                                backgroundColor: dotColor,
+                                boxShadow: `0 0 6px ${dotColor}80, 0 0 12px ${dotColor}30`,
+                              }
+                        }
+                      >
+                        {isCompleted && (
+                          <CheckCircle
+                            className="w-full h-full"
+                            style={{ color: dotColor }}
+                          />
+                        )}
+                        {/* Status mini-dot */}
+                        {!isCompleted && (
+                          <span
+                            className="absolute rounded-full"
+                            style={{
+                              width: "5px",
+                              height: "5px",
+                              top: "-1px",
+                              right: "-1px",
+                              backgroundColor: statusDotColor,
+                              boxShadow: `0 0 3px ${statusDotColor}`,
+                            }}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
                   {dayAppointments.length > 5 && (
                     <span className="text-[10px] text-white/40">
                       +{dayAppointments.length - 5}
