@@ -43,7 +43,7 @@ export function useAppointments() {
       const appointments = Object.entries(raw || {}).map(([key, value]) => ({ ...(value as Record<string, unknown>), $id: key })) as unknown[];
 
       const normalizeStatus = (s: unknown) =>
-        s === "approved" || s === "rejected" || s === "pending" ? (s as Appointment["status"]) : "pending";
+        s === "approved" || s === "rejected" || s === "pending" || s === "completed" ? (s as Appointment["status"]) : "pending";
 
       const normalized = appointments.map((a) => {
         const o = a as Record<string, unknown>;
@@ -111,7 +111,7 @@ export function useAppointments() {
             if (data.appointments) {
               console.log("[TRACE] Setting appointments:", data.appointments);
               const normalizeStatus = (s: unknown) =>
-                s === "approved" || s === "rejected" || s === "pending" ? (s as Appointment["status"]) : "pending";
+                s === "approved" || s === "rejected" || s === "pending" || s === "completed" ? (s as Appointment["status"]) : "pending";
               const normalized = (data.appointments || []).map((a) => {
                 const o = a as Record<string, unknown>;
                 return {
@@ -177,7 +177,7 @@ export function useAppointments() {
     const updateAppointment = useCallback(
     async (
       id: string,
-      data: { status: string; arrivalTime?: string; finishedTime?: string }
+      data: { status?: string; arrivalTime?: string; finishedTime?: string; requestedTime?: string }
     ): Promise<{ success: boolean; error?: string }> => {
       // mark pending write so realtime listener won't clear on transient empty snapshot
       useAppStore.getState().setPendingWriteUntil(Date.now() + 5000);
@@ -199,7 +199,7 @@ export function useAppointments() {
           const state = useAppStore.getState();
           const current = state.appointments || [];
           const normalizeStatus = (s: unknown) =>
-            s === "approved" || s === "rejected" || s === "pending" ? (s as Appointment["status"]) : "pending";
+            s === "approved" || s === "rejected" || s === "pending" || s === "completed" ? (s as Appointment["status"]) : "pending";
           const updated = current.map((apt) => {
             if (apt.$id !== id) return apt;
             const incoming = ((result.appointment as unknown) as Record<string, unknown>) || (data as Record<string, unknown>);

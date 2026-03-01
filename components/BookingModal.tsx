@@ -13,9 +13,9 @@ import {
 import { useAppStore } from "@/lib/store";
 import { useAppointments } from "@/hooks/useData";
 import { useUser } from "@clerk/nextjs";
-import { format, getDay } from "date-fns";
+import { format } from "date-fns";
 import toast from "react-hot-toast";
-import { isAdmin, formatTime, timeToMinutes } from "@/lib/utils";
+import { isAdmin, formatTime, timeToMinutes, getOperatingHours } from "@/lib/utils";
 import IconList from "./icons/IconList";
 
 export default function BookingModal() {
@@ -67,45 +67,7 @@ export default function BookingModal() {
     { start: string; end: string } | "closed" | null
   >(() => {
     if (!selectedDate) return null;
-    const dateObj = new Date(selectedDate + "T00:00:00");
-    const dayOfWeek = getDay(dateObj); // 0=Sun … 6=Sat
-
-    // 1. Check for a date_override matching this exact date
-    const dateOverride = availability.find(
-      (r) => r.type === "date_override" && r.value === selectedDate,
-    );
-    if (dateOverride) {
-      if (dateOverride.isClosed) return "closed";
-      if (dateOverride.startTime && dateOverride.endTime) {
-        return { start: dateOverride.startTime, end: dateOverride.endTime };
-      }
-    }
-
-    // 2. Check for legacy specific_date (unavailable) rule
-    const legacyDate = availability.find(
-      (r) => r.type === "specific_date" && r.value === selectedDate,
-    );
-    if (legacyDate) return "closed";
-
-    // 3. Check for weekly_hours for this weekday
-    const weeklyRule = availability.find(
-      (r) => r.type === "weekly_hours" && r.value === String(dayOfWeek),
-    );
-    if (weeklyRule) {
-      if (weeklyRule.isClosed) return "closed";
-      if (weeklyRule.startTime && weeklyRule.endTime) {
-        return { start: weeklyRule.startTime, end: weeklyRule.endTime };
-      }
-    }
-
-    // 4. Check legacy weekday unavailability
-    const legacyWeekday = availability.find(
-      (r) => r.type === "weekday" && r.value === String(dayOfWeek),
-    );
-    if (legacyWeekday) return "closed";
-
-    // No rules → no restrictions
-    return null;
+    return getOperatingHours(selectedDate, availability);
   }, [selectedDate, availability]);
 
   // Build 30-min time slot options filtered by AM/PM
@@ -316,7 +278,9 @@ export default function BookingModal() {
                       ? "bg-emerald-500/20 text-emerald-300"
                       : apt.status === "rejected"
                         ? "bg-red-500/20 text-red-300"
-                        : "bg-yellow-500/20 text-yellow-300"
+                        : apt.status === "completed"
+                          ? "bg-blue-500/20 text-blue-300"
+                          : "bg-yellow-500/20 text-yellow-300"
                   }`}
                 >
                   {apt.status}
@@ -602,7 +566,9 @@ export default function BookingModal() {
                           ? "bg-emerald-500/20 text-emerald-300"
                           : apt.status === "rejected"
                             ? "bg-red-500/20 text-red-300"
-                            : "bg-yellow-500/20 text-yellow-300"
+                            : apt.status === "completed"
+                              ? "bg-blue-500/20 text-blue-300"
+                              : "bg-yellow-500/20 text-yellow-300"
                       }`}
                     >
                       {apt.status}
@@ -615,7 +581,7 @@ export default function BookingModal() {
               (apt) => apt.date === selectedDate && apt.userId === user?.id,
             ).length === 0 && (
               <p className="text-white/40 text-sm">
-                No appointments scheduled for this date.
+                You don&apos;t have any appointments scheduled for this date.
               </p>
             )}
           </div>

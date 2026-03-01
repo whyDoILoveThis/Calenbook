@@ -9,12 +9,19 @@ import {
   Image as ImageIcon,
   User,
   AlertTriangle,
+  ChevronLeft,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { useAppointments } from "@/hooks/useData";
-import { formatTime, isAdmin, isTimeConflict } from "@/lib/utils";
+import {
+  formatTime,
+  isAdmin,
+  isTimeConflict,
+  getOperatingHours,
+} from "@/lib/utils";
 import { Appointment } from "@/lib/types";
 import GlassDropdown from "./GlassDropdown";
+import TimeSelector from "./TimeSelector";
 import { format } from "date-fns";
 import { useUser } from "@clerk/nextjs";
 import toast from "react-hot-toast";
@@ -24,14 +31,20 @@ export default function AppointmentDetail() {
     selectedAppointment,
     setSelectedAppointment,
     setShowAppointmentDetail,
+    setShowAdminPanel,
     appointments,
+    availability,
   } = useAppStore();
   const { deleteAppointment, updateAppointment } = useAppointments();
   const { user } = useUser();
   const [processing, setProcessing] = useState(false);
-  const [status, setStatus] = useState<
-    "pending" | "approved" | "rejected" | undefined
-  >(selectedAppointment?.status || "pending");
+  const [status, setStatus] = useState<Appointment["status"] | undefined>(
+    selectedAppointment?.status || "pending",
+  );
+  const [editingRequestedTime, setEditingRequestedTime] = useState(false);
+  const [requestedTime, setRequestedTime] = useState<string>(
+    selectedAppointment?.requestedTime || "",
+  );
   const [arrivalTime, setArrivalTime] = useState<string>(
     selectedAppointment?.arrivalTime || "",
   );
@@ -40,11 +53,15 @@ export default function AppointmentDetail() {
   );
   const [saving, setSaving] = useState(false);
   const [statusOpen, setStatusOpen] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
   useEffect(() => {
     setStatus(selectedAppointment?.status || "pending");
     setArrivalTime(selectedAppointment?.arrivalTime || "");
     setFinishedTime(selectedAppointment?.finishedTime || "");
+    setRequestedTime(selectedAppointment?.requestedTime || "");
+    setEditingRequestedTime(false);
   }, [selectedAppointment]);
 
   // Overlap detection for admin time editing
@@ -75,6 +92,12 @@ export default function AppointmentDetail() {
     );
   }, [arrivalTime, finishedTime, approvedOnDate]);
 
+  // Operating hours for the appointment's date (drives red/yellow highlighting)
+  const operatingHours = useMemo(() => {
+    if (!selectedAppointment) return null;
+    return getOperatingHours(selectedAppointment.date, availability);
+  }, [selectedAppointment, availability]);
+
   if (!selectedAppointment) return null;
 
   const isOwner = user?.id === selectedAppointment.userId;
@@ -94,12 +117,25 @@ export default function AppointmentDetail() {
       toast.success("Appointment cancelled");
       setSelectedAppointment(null);
       setShowAppointmentDetail(false);
+      setShowDeleteConfirm(false);
+      setDeleteConfirmText("");
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to cancel appointment";
       toast.error(message);
     } finally {
       setProcessing(false);
+    }
+  };
+
+  const handleDeleteClick = () => {
+    setShowDeleteConfirm(true);
+    setDeleteConfirmText("");
+  };
+
+  const handleConfirmDelete = () => {
+    if (deleteConfirmText === "yes i want to cancel frfr") {
+      handleDelete();
     }
   };
 
@@ -168,12 +204,26 @@ export default function AppointmentDetail() {
       />
 
       <div className="glass-panel relative w-full max-w-md max-h-[90vh] overflow-y-auto z-10 rounded-2xl p-6">
-        <button
-          onClick={handleClose}
-          className="absolute top-4 right-4 glass-button p-1.5 rounded-lg"
-        >
-          <X className="w-4 h-4" />
-        </button>
+        <div className="absolute top-4 right-4 flex gap-3">
+          {userIsAdmin && (
+            <button
+              onClick={() => {
+                setShowAppointmentDetail(false);
+                setShowAdminPanel(true);
+              }}
+              className="glass-button p-1.5 rounded-lg"
+              title="Back to admin overview"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+          )}
+          <button
+            onClick={handleClose}
+            className="glass-button p-1.5 rounded-lg"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
 
         <h2 className="text-xl font-light text-white/90 mb-1">
           Appointment Details
@@ -208,7 +258,9 @@ export default function AppointmentDetail() {
                         ? "bg-emerald-500/20 text-emerald-300"
                         : status === "rejected"
                           ? "bg-red-500/20 text-red-300"
-                          : "bg-white/10 text-white/50"
+                          : status === "completed"
+                            ? "bg-blue-500/20 text-blue-300"
+                            : "bg-white/10 text-white/50"
                     }`}
                   >
                     {(status ?? "pending").charAt(0).toUpperCase() +
@@ -223,6 +275,7 @@ export default function AppointmentDetail() {
                     { value: "pending", label: "Pending" },
                     { value: "approved", label: "Approved" },
                     { value: "rejected", label: "Rejected" },
+                    { value: "completed", label: "Completed" },
                   ]}
                   className="min-w-24"
                 />
@@ -274,7 +327,9 @@ export default function AppointmentDetail() {
                   ? "bg-emerald-500/20 text-emerald-300"
                   : selectedAppointment.status === "rejected"
                     ? "bg-red-500/20 text-red-300"
-                    : "bg-white/10 text-white/50"
+                    : selectedAppointment.status === "completed"
+                      ? "bg-blue-500/20 text-blue-300"
+                      : "bg-white/10 text-white/50"
               }`}
             >
               {selectedAppointment.status.charAt(0).toUpperCase() +
@@ -285,185 +340,128 @@ export default function AppointmentDetail() {
 
         {/* Requested Time */}
         <div className="glass-button rounded-xl p-4 mb-4">
-          <div className="flex items-center gap-3">
-            <Clock className="w-4 h-4 text-white/40" />
-            <span className="text-sm text-white/60">
-              Requested: {formatTime(selectedAppointment.requestedTime)}
-            </span>
-          </div>
+          {editingRequestedTime &&
+          isOwner &&
+          selectedAppointment.status === "pending" ? (
+            <div className="space-y-2">
+              <label className="text-sm text-white/40 block">
+                Select New Time
+              </label>
+              <div className="flex gap-2">
+                <select
+                  value={requestedTime}
+                  onChange={(e) => setRequestedTime(e.target.value)}
+                  className="glass-input rounded-lg px-3 py-2 text-sm text-white/90 bg-white/5 flex-1"
+                >
+                  <option value="" disabled>
+                    Select time
+                  </option>
+                  {Array.from({ length: 48 }, (_, i) => {
+                    const h = Math.floor(i / 2);
+                    const m = (i % 2) * 30;
+                    const time24 = `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
+                    return (
+                      <option
+                        key={time24}
+                        value={time24}
+                        className="bg-slate-900 text-white"
+                      >
+                        {formatTime(time24)}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={async () => {
+                    if (!selectedAppointment || !requestedTime) return;
+                    setSaving(true);
+                    const res = await updateAppointment(
+                      selectedAppointment.$id,
+                      {
+                        requestedTime,
+                      },
+                    );
+                    if (res.success) {
+                      toast.success("Time updated");
+                      setSelectedAppointment({
+                        ...selectedAppointment,
+                        requestedTime,
+                      });
+                      setEditingRequestedTime(false);
+                    } else {
+                      toast.error(res.error || "Failed to update time");
+                    }
+                    setSaving(false);
+                  }}
+                  disabled={saving || !requestedTime}
+                  className="glass-button px-3 py-1 rounded-md text-sm flex-1"
+                >
+                  {saving ? "Saving..." : "Update"}
+                </button>
+                <button
+                  onClick={() => {
+                    setEditingRequestedTime(false);
+                    setRequestedTime(selectedAppointment?.requestedTime || "");
+                  }}
+                  className="glass-button px-3 py-1 rounded-md text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Clock className="w-4 h-4 text-white/40" />
+                <span className="text-sm text-white/60">
+                  Requested: {formatTime(selectedAppointment.requestedTime)}
+                </span>
+              </div>
+              {isOwner && selectedAppointment.status === "pending" && (
+                <button
+                  onClick={() => setEditingRequestedTime(true)}
+                  className="text-xs text-purple-300/80 hover:text-purple-300 transition-colors"
+                >
+                  Change
+                </button>
+              )}
+            </div>
+          )}
           {userIsAdmin ? (
-            <div className="mt-3 space-y-2">
-              <div>
-                <label className="text-sm text-white/40 mb-2 block">
-                  Arrival
-                </label>
-                <div className="flex gap-2 items-center custom-scrollbar">
-                  <GlassDropdown
-                    value={
-                      arrivalTime
-                        ? (() => {
-                            const [h] = arrivalTime.split(":");
-                            let hour = parseInt(h);
-                            hour = hour % 12 || 12;
-                            return String(hour).padStart(2, "0");
-                          })()
-                        : ""
-                    }
-                    onChange={(v) => {
-                      let h = parseInt(v);
-                      const ampm = arrivalTime
-                        ? parseInt(arrivalTime.split(":")[0]) >= 12
-                          ? "PM"
-                          : "AM"
-                        : "AM";
-                      const m = arrivalTime ? arrivalTime.split(":")[1] : "00";
-                      if (ampm === "PM" && h !== 12) h += 12;
-                      if (ampm === "AM" && h === 12) h = 0;
-                      setArrivalTime(`${h.toString().padStart(2, "0")}:${m}`);
-                    }}
-                    options={[
-                      { value: "", label: "HRS" },
-                      ...Array.from({ length: 12 }, (_, i) => ({
-                        value: String(i + 1).padStart(2, "0"),
-                        label: String(i + 1).padStart(2, "0"),
-                      })),
-                    ]}
-                    className="min-w-16"
-                  />
-                  <span className="text-white/40">:</span>
-                  <GlassDropdown
-                    value={arrivalTime ? arrivalTime.split(":")[1] : ""}
-                    onChange={(v) => {
-                      const h = arrivalTime
-                        ? parseInt(arrivalTime.split(":")[0])
-                        : 0;
-                      const m = v;
-                      setArrivalTime(`${h.toString().padStart(2, "0")}:${m}`);
-                    }}
-                    options={[
-                      { value: "", label: "MM" },
-                      ...["00", "15", "30", "45"].map((m) => ({
-                        value: m,
-                        label: m,
-                      })),
-                    ]}
-                    className="min-w-16"
-                  />
-                  <GlassDropdown
-                    value={
-                      arrivalTime
-                        ? parseInt(arrivalTime.split(":")[0]) >= 12
-                          ? "PM"
-                          : "AM"
-                        : "AM"
-                    }
-                    onChange={(v) => {
-                      const ampm = v;
-                      const [h, m] = arrivalTime
-                        ? arrivalTime.split(":")
-                        : ["00", "00"];
-                      let hour = parseInt(h);
-                      if (ampm === "PM" && hour < 12) hour += 12;
-                      if (ampm === "AM" && hour === 12) hour = 0;
-                      setArrivalTime(
-                        `${hour.toString().padStart(2, "0")}:${m}`,
-                      );
-                    }}
-                    options={[
-                      { value: "AM", label: "AM" },
-                      { value: "PM", label: "PM" },
-                    ]}
-                    className="min-w-16"
-                  />
-                </div>
-              </div>
+            <div className="mt-3 space-y-4">
+              <TimeSelector
+                value={arrivalTime}
+                onChange={setArrivalTime}
+                label="Arrival Time"
+                showLabel={true}
+                defaultAmPm={
+                  arrivalTime
+                    ? parseInt(arrivalTime.split(":")[0]) >= 12
+                      ? "PM"
+                      : "AM"
+                    : "AM"
+                }
+                operatingHours={operatingHours}
+                isAdmin={true}
+              />
 
-              <div>
-                <label className="text-sm text-white/40 mb-2 block">
-                  Estimated Finish Time
-                </label>
-                <div className="flex gap-2 items-center custom-scrollbar">
-                  <GlassDropdown
-                    value={
-                      finishedTime
-                        ? (() => {
-                            const [h] = finishedTime.split(":");
-                            let hour = parseInt(h);
-                            hour = hour % 12 || 12;
-                            return String(hour).padStart(2, "0");
-                          })()
-                        : ""
-                    }
-                    onChange={(v) => {
-                      let h = parseInt(v);
-                      const ampm = finishedTime
-                        ? parseInt(finishedTime.split(":")[0]) >= 12
-                          ? "PM"
-                          : "AM"
-                        : "AM";
-                      const m = finishedTime
-                        ? finishedTime.split(":")[1]
-                        : "00";
-                      if (ampm === "PM" && h !== 12) h += 12;
-                      if (ampm === "AM" && h === 12) h = 0;
-                      setFinishedTime(`${h.toString().padStart(2, "0")}:${m}`);
-                    }}
-                    options={[
-                      { value: "", label: "HRS" },
-                      ...Array.from({ length: 12 }, (_, i) => ({
-                        value: String(i + 1).padStart(2, "0"),
-                        label: String(i + 1).padStart(2, "0"),
-                      })),
-                    ]}
-                    className="min-w-16"
-                  />
-                  <span className="text-white/40">:</span>
-                  <GlassDropdown
-                    value={finishedTime ? finishedTime.split(":")[1] : ""}
-                    onChange={(v) => {
-                      const h = finishedTime
-                        ? parseInt(finishedTime.split(":")[0])
-                        : 0;
-                      const m = v;
-                      setFinishedTime(`${h.toString().padStart(2, "0")}:${m}`);
-                    }}
-                    options={[
-                      { value: "", label: "MM" },
-                      ...["00", "15", "30", "45"].map((m) => ({
-                        value: m,
-                        label: m,
-                      })),
-                    ]}
-                    className="min-w-16"
-                  />
-                  <GlassDropdown
-                    value={
-                      finishedTime
-                        ? parseInt(finishedTime.split(":")[0]) >= 12
-                          ? "PM"
-                          : "AM"
-                        : "AM"
-                    }
-                    onChange={(v) => {
-                      const ampm = v;
-                      const [h, m] = finishedTime
-                        ? finishedTime.split(":")
-                        : ["00", "00"];
-                      let hour = parseInt(h);
-                      if (ampm === "PM" && hour < 12) hour += 12;
-                      if (ampm === "AM" && hour === 12) hour = 0;
-                      setFinishedTime(
-                        `${hour.toString().padStart(2, "0")}:${m}`,
-                      );
-                    }}
-                    options={[
-                      { value: "AM", label: "AM" },
-                      { value: "PM", label: "PM" },
-                    ]}
-                    className="min-w-16"
-                  />
-                </div>
-              </div>
+              <TimeSelector
+                value={finishedTime}
+                onChange={setFinishedTime}
+                label="Estimated Finish Time"
+                showLabel={true}
+                defaultAmPm={
+                  finishedTime
+                    ? parseInt(finishedTime.split(":")[0]) >= 12
+                      ? "PM"
+                      : "AM"
+                    : "PM"
+                }
+                operatingHours={operatingHours}
+                isAdmin={true}
+              />
 
               {/* Overlap warning */}
               {hasConflict && (
@@ -554,18 +552,69 @@ export default function AppointmentDetail() {
             </div>
           )}
 
-        {/* Cancel / Delete - only for owner */}
-        {isOwner && (
+        {/* Cancel / Delete - for owner or admin */}
+        {(isOwner || userIsAdmin) && (
           <button
-            onClick={handleDelete}
+            onClick={handleDeleteClick}
             disabled={processing}
             className="w-full glass-button py-2.5 rounded-xl text-sm text-red-400/60 hover:text-red-400 hover:bg-red-500/10 transition-all flex items-center justify-center gap-2"
           >
             <Trash2 className="w-4 h-4" />
-            {processing ? "Cancelling..." : "Cancel Appointment"}
+            {isOwner ? "Cancel Appointment" : "Delete Appointment"}
           </button>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <div className="glass-panel rounded-2xl w-full max-w-sm p-6">
+            <h2 className="text-xl font-light text-white/90 mb-2">
+              Cancel Appointment?
+            </h2>
+            <p className="text-sm text-white/50 mb-5">
+              This action cannot be undone. To confirm, type the text below:
+            </p>
+
+            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 mb-4">
+              <p className="text-sm font-mono text-red-300/80">
+                yes i want to cancel frfr
+              </p>
+            </div>
+
+            <input
+              type="text"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder="Type the text above..."
+              className="w-full glass-input px-4 py-3 rounded-xl text-sm text-white/90 placeholder-white/30 mb-5"
+              autoFocus
+            />
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setDeleteConfirmText("");
+                }}
+                className="flex-1 glass-button py-3 rounded-xl text-sm font-medium text-white/60 hover:bg-white/10 transition-colors"
+              >
+                Keep It
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                disabled={
+                  deleteConfirmText !== "yes i want to cancel frfr" ||
+                  processing
+                }
+                className="flex-1 bg-red-500/20 border border-red-500/30 text-red-300 py-3 rounded-xl text-sm font-medium hover:bg-red-500/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {processing ? "Cancelling..." : "Yes, Cancel"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

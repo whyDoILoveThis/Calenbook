@@ -9,9 +9,10 @@ export interface Appointment {
   arrivalTime: string | null; // HH:MM set by admin on approval
   finishedTime: string | null; // HH:MM set by admin on approval
   description: string;
+  color: string; // User-chosen dot color (hex)
   imageIds: string[]; // file IDs in Appwrite storage
   imageUrls: string[]; // Preview URLs for images
-  status: "pending" | "approved" | "rejected";
+  status: "pending" | "approved" | "rejected" | "completed";
 }
 
 export interface Availability {
@@ -29,6 +30,7 @@ export interface AppointmentFormData {
   date: string;
   requestedTime: string;
   description: string;
+  color: string;
   images: File[];
 }
 

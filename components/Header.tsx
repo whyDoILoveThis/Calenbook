@@ -1,7 +1,13 @@
 "use client";
 
 import { UserButton, useUser } from "@clerk/nextjs";
-import { Shield, CalendarClock, Inbox, CalendarOff } from "lucide-react";
+import {
+  Shield,
+  CalendarClock,
+  Inbox,
+  CalendarOff,
+  Calendar,
+} from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { isAdmin } from "@/lib/utils";
 
@@ -12,11 +18,16 @@ export default function Header() {
     setShowAdminPanel,
     setShowAvailabilityPanel,
     setSelectedDate,
+    setShowUserAppointments,
     appointments,
   } = useAppStore();
 
   const pendingCount = appointments.filter(
     (apt) => apt.status === "pending",
+  ).length;
+
+  const userAppointmentCount = appointments.filter(
+    (apt) => apt.userEmail === user?.primaryEmailAddress?.emailAddress,
   ).length;
 
   return (
@@ -34,8 +45,8 @@ export default function Header() {
         )}
       </div>
 
-      <div className="flex items-center gap-3">
-        {userIsAdmin && (
+      <div className="flex items-center gap-6">
+        {userIsAdmin ? (
           <>
             <button
               onClick={() => {
@@ -45,7 +56,6 @@ export default function Header() {
               className="glass-button px-3 py-2 rounded-xl text-sm flex items-center gap-2 relative"
             >
               <Inbox className="w-4 h-4" />
-              <span className="hidden sm:inline">Requests</span>
               {pendingCount > 0 && (
                 <span className="absolute -top-1 -right-1 w-5 h-5 bg-purple-500 rounded-full text-xs flex items-center justify-center text-white">
                   {pendingCount}
@@ -57,9 +67,20 @@ export default function Header() {
               className="glass-button px-3 py-2 rounded-xl text-sm flex items-center gap-2"
             >
               <CalendarOff className="w-4 h-4" />
-              <span className="hidden sm:inline">Availability</span>
             </button>
           </>
+        ) : (
+          <button
+            onClick={() => setShowUserAppointments(true)}
+            className="glass-button px-3 py-2 rounded-xl text-sm flex items-center gap-2 relative"
+          >
+            <Calendar className="w-4 h-4" />
+            {userAppointmentCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-purple-500 rounded-full text-xs flex items-center justify-center text-white">
+                {userAppointmentCount}
+              </span>
+            )}
+          </button>
         )}
         <UserButton
           appearance={{

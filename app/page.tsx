@@ -11,6 +11,7 @@ import BookingModal from "@/components/BookingModal";
 import AdminPanel from "@/components/AdminPanel";
 import AvailabilityPanel from "@/components/AvailabilityPanel";
 import AppointmentDetail from "@/components/AppointmentDetail";
+import UserAppointmentsList from "@/components/UserAppointmentsList";
 import { Toaster } from "react-hot-toast";
 
 export default function Home() {
@@ -21,6 +22,7 @@ export default function Home() {
     showAdminPanel,
     showAvailabilityPanel,
     showAppointmentDetail,
+    showUserAppointments,
     loading,
   } = useAppStore();
 
@@ -85,6 +87,7 @@ export default function Home() {
       {showAdminPanel && <AdminPanel />}
       {showAvailabilityPanel && <AvailabilityPanel />}
       {showAppointmentDetail && <AppointmentDetail />}
+      {showUserAppointments && <UserAppointmentsList />}
     </div>
   );
 }

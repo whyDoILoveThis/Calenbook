@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import GlassDropdown from "./GlassDropdown";
+import TimeSelector from "./TimeSelector";
 import {
   X,
   Check,
@@ -12,12 +13,14 @@ import {
   FileText,
   Trash2,
   ChevronLeft,
+  CheckCircle,
+  ExternalLink,
   Image as ImageIcon,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { useAppointments } from "@/hooks/useData";
 import { Appointment } from "@/lib/types";
-import { formatTime, isTimeConflict } from "@/lib/utils";
+import { formatTime, isTimeConflict, getOperatingHours } from "@/lib/utils";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
 
@@ -29,11 +32,13 @@ export default function AdminPanel() {
   const {
     selectedDate,
     appointments,
+    availability,
     setShowAdminPanel,
     setSelectedDate,
     selectedAppointment,
     setSelectedAppointment,
     setShowBookingModal,
+    setShowAppointmentDetail,
   } = useAppStore();
 
   const { updateAppointment, deleteAppointment } = useAppointments();
@@ -41,7 +46,11 @@ export default function AdminPanel() {
   const [arrivalTime, setArrivalTime] = useState("");
   const [finishedTime, setFinishedTime] = useState("");
   const [processing, setProcessing] = useState(false);
-  const [view, setView] = useState<"list" | "detail">("list");
+  const [view, setView] = useState<"list" | "detail">(
+    selectedAppointment ? "detail" : "list",
+  );
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
   const filteredAppointments = useMemo(() => {
     if (selectedDate) {
@@ -74,6 +83,12 @@ export default function AdminPanel() {
         ),
     );
   }, [arrivalTime, finishedTime, approvedOnDate]);
+
+  // Operating hours for the appointment's date (drives red/yellow highlighting)
+  const operatingHours = useMemo(() => {
+    if (!selectedAppointment) return null;
+    return getOperatingHours(selectedAppointment.date, availability);
+  }, [selectedAppointment, availability]);
 
   const handleClose = () => {
     setShowAdminPanel(false);
@@ -152,12 +167,25 @@ export default function AdminPanel() {
       toast.success("Appointment deleted");
       setView("list");
       setSelectedAppointment(null);
+      setShowDeleteConfirm(false);
+      setDeleteConfirmText("");
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to delete appointment";
       toast.error(message);
     } finally {
       setProcessing(false);
+    }
+  };
+
+  const handleDeleteClick = () => {
+    setShowDeleteConfirm(true);
+    setDeleteConfirmText("");
+  };
+
+  const handleConfirmDelete = () => {
+    if (deleteConfirmText === "yes i want to cancel frfr") {
+      handleDelete();
     }
   };
 
@@ -170,6 +198,18 @@ export default function AdminPanel() {
 
       <div className="glass-panel relative w-full max-w-2xl max-h-[90vh] overflow-y-auto z-10 rounded-2xl p-6">
         <div className="absolute top-4 right-4 flex gap-6">
+          {view === "detail" && selectedAppointment && (
+            <button
+              onClick={() => {
+                setShowAppointmentDetail(true);
+                setShowAdminPanel(false);
+              }}
+              className="glass-button p-1.5 rounded-lg"
+              title="Open full details"
+            >
+              <ExternalLink className="w-4 h-4" />
+            </button>
+          )}
           <button
             onClick={() => {
               setShowBookingModal(true);
@@ -216,15 +256,19 @@ export default function AdminPanel() {
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <div
-                        className={`w-2.5 h-2.5 rounded-full ${
-                          apt.status === "approved"
-                            ? "bg-emerald-400"
-                            : apt.status === "rejected"
-                              ? "bg-red-400"
-                              : "bg-white/30"
-                        }`}
-                      />
+                      {apt.status === "completed" ? (
+                        <CheckCircle className="w-4 h-4 text-emerald-400" />
+                      ) : (
+                        <div
+                          className={`w-2.5 h-2.5 rounded-full ${
+                            apt.status === "approved"
+                              ? "bg-emerald-400"
+                              : apt.status === "rejected"
+                                ? "bg-red-400"
+                                : "bg-white/30"
+                          }`}
+                        />
+                      )}
                       <span className="text-sm font-medium text-white/80">
                         {apt.userName || "Anonymous"}
                       </span>
@@ -235,7 +279,9 @@ export default function AdminPanel() {
                           ? "bg-emerald-500/20 text-emerald-300"
                           : apt.status === "rejected"
                             ? "bg-red-500/20 text-red-300"
-                            : "bg-white/10 text-white/50"
+                            : apt.status === "completed"
+                              ? "bg-blue-500/20 text-blue-300"
+                              : "bg-white/10 text-white/50"
                       }`}
                     >
                       {apt.status}
@@ -360,187 +406,37 @@ export default function AdminPanel() {
                 {/* Time selection for approval */}
                 {selectedAppointment.status === "pending" && (
                   <div className="space-y-4">
-                    <div>
-                      <label className="text-sm text-white/40 mb-2 block">
-                        Arrival Time
-                      </label>
-                      <div className="flex gap-2 items-center custom-scrollbar">
-                        <GlassDropdown
-                          value={
-                            arrivalTime
-                              ? (() => {
-                                  const [h] = arrivalTime.split(":");
-                                  let hour = parseInt(h);
-                                  hour = hour % 12 || 12;
-                                  return String(hour).padStart(2, "0");
-                                })()
-                              : ""
-                          }
-                          onChange={(v) => {
-                            let h = parseInt(v);
-                            const ampm = arrivalTime
-                              ? parseInt(arrivalTime.split(":")[0]) >= 12
-                                ? "PM"
-                                : "AM"
-                              : "AM";
-                            const m = arrivalTime
-                              ? arrivalTime.split(":")[1]
-                              : "00";
-                            if (ampm === "PM" && h !== 12) h += 12;
-                            if (ampm === "AM" && h === 12) h = 0;
-                            setArrivalTime(
-                              `${h.toString().padStart(2, "0")}:${m}`,
-                            );
-                          }}
-                          options={[
-                            { value: "", label: "HRS" },
-                            ...Array.from({ length: 12 }, (_, i) => ({
-                              value: String(i + 1).padStart(2, "0"),
-                              label: String(i + 1).padStart(2, "0"),
-                            })),
-                          ]}
-                          className="min-w-16"
-                        />
-                        <span className="text-white/40">:</span>
-                        <GlassDropdown
-                          value={arrivalTime ? arrivalTime.split(":")[1] : ""}
-                          onChange={(v) => {
-                            const h = arrivalTime
-                              ? parseInt(arrivalTime.split(":")[0])
-                              : 0;
-                            const m = v;
-                            setArrivalTime(
-                              `${h.toString().padStart(2, "0")}:${m}`,
-                            );
-                          }}
-                          options={[
-                            { value: "", label: "MM" },
-                            ...["00", "15", "30", "45"].map((m) => ({
-                              value: m,
-                              label: m,
-                            })),
-                          ]}
-                          className="min-w-16"
-                        />
-                        <GlassDropdown
-                          value={
-                            arrivalTime
-                              ? parseInt(arrivalTime.split(":")[0]) >= 12
-                                ? "PM"
-                                : "AM"
-                              : "AM"
-                          }
-                          onChange={(v) => {
-                            const ampm = v;
-                            const [h, m] = arrivalTime
-                              ? arrivalTime.split(":")
-                              : ["00", "00"];
-                            let hour = parseInt(h);
-                            if (ampm === "PM" && hour < 12) hour += 12;
-                            if (ampm === "AM" && hour === 12) hour = 0;
-                            setArrivalTime(
-                              `${hour.toString().padStart(2, "0")}:${m}`,
-                            );
-                          }}
-                          options={[
-                            { value: "AM", label: "AM" },
-                            { value: "PM", label: "PM" },
-                          ]}
-                          className="min-w-16"
-                        />
-                      </div>
-                    </div>
+                    <TimeSelector
+                      value={arrivalTime}
+                      onChange={setArrivalTime}
+                      label="Arrival Time"
+                      showLabel={true}
+                      defaultAmPm={
+                        arrivalTime
+                          ? parseInt(arrivalTime.split(":")[0]) >= 12
+                            ? "PM"
+                            : "AM"
+                          : "AM"
+                      }
+                      operatingHours={operatingHours}
+                      isAdmin={true}
+                    />
 
-                    <div>
-                      <label className="text-sm text-white/40 mb-2 block">
-                        Estimated Finish Time
-                      </label>
-                      <div className="flex gap-2 items-center custom-scrollbar">
-                        <GlassDropdown
-                          value={
-                            finishedTime
-                              ? (() => {
-                                  const [h] = finishedTime.split(":");
-                                  let hour = parseInt(h);
-                                  hour = hour % 12 || 12;
-                                  return String(hour).padStart(2, "0");
-                                })()
-                              : ""
-                          }
-                          onChange={(v) => {
-                            let h = parseInt(v);
-                            const ampm = finishedTime
-                              ? parseInt(finishedTime.split(":")[0]) >= 12
-                                ? "PM"
-                                : "AM"
-                              : "AM";
-                            const m = finishedTime
-                              ? finishedTime.split(":")[1]
-                              : "00";
-                            if (ampm === "PM" && h !== 12) h += 12;
-                            if (ampm === "AM" && h === 12) h = 0;
-                            setFinishedTime(
-                              `${h.toString().padStart(2, "0")}:${m}`,
-                            );
-                          }}
-                          options={[
-                            { value: "", label: "HRS" },
-                            ...Array.from({ length: 12 }, (_, i) => ({
-                              value: String(i + 1).padStart(2, "0"),
-                              label: String(i + 1).padStart(2, "0"),
-                            })),
-                          ]}
-                          className="min-w-16"
-                        />
-                        <span className="text-white/40">:</span>
-                        <GlassDropdown
-                          value={finishedTime ? finishedTime.split(":")[1] : ""}
-                          onChange={(v) => {
-                            const h = finishedTime
-                              ? parseInt(finishedTime.split(":")[0])
-                              : 0;
-                            const m = v;
-                            setFinishedTime(
-                              `${h.toString().padStart(2, "0")}:${m}`,
-                            );
-                          }}
-                          options={[
-                            { value: "", label: "MM" },
-                            ...["00", "15", "30", "45"].map((m) => ({
-                              value: m,
-                              label: m,
-                            })),
-                          ]}
-                          className="min-w-16"
-                        />
-                        <GlassDropdown
-                          value={
-                            finishedTime
-                              ? parseInt(finishedTime.split(":")[0]) >= 12
-                                ? "PM"
-                                : "AM"
-                              : "AM"
-                          }
-                          onChange={(v) => {
-                            const ampm = v;
-                            const [h, m] = finishedTime
-                              ? finishedTime.split(":")
-                              : ["00", "00"];
-                            let hour = parseInt(h);
-                            if (ampm === "PM" && hour < 12) hour += 12;
-                            if (ampm === "AM" && hour === 12) hour = 0;
-                            setFinishedTime(
-                              `${hour.toString().padStart(2, "0")}:${m}`,
-                            );
-                          }}
-                          options={[
-                            { value: "AM", label: "AM" },
-                            { value: "PM", label: "PM" },
-                          ]}
-                          className="min-w-16"
-                        />
-                      </div>
-                    </div>
+                    <TimeSelector
+                      value={finishedTime}
+                      onChange={setFinishedTime}
+                      label="Estimated Finish Time"
+                      showLabel={true}
+                      defaultAmPm={
+                        finishedTime
+                          ? parseInt(finishedTime.split(":")[0]) >= 12
+                            ? "PM"
+                            : "AM"
+                          : "PM"
+                      }
+                      operatingHours={operatingHours}
+                      isAdmin={true}
+                    />
 
                     {hasConflict && (
                       <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-3 text-sm text-orange-300">
@@ -572,18 +468,69 @@ export default function AdminPanel() {
 
                 {/* Delete */}
                 <button
-                  onClick={handleDelete}
+                  onClick={handleDeleteClick}
                   disabled={processing}
                   className="w-full glass-button py-2.5 rounded-xl text-sm text-red-400/60 hover:text-red-400 hover:bg-red-500/10 transition-all flex items-center justify-center gap-2"
                 >
                   <Trash2 className="w-4 h-4" />
-                  Delete Appointment
+                  Cancel Appointment
                 </button>
               </div>
             </>
           )
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <div className="glass-panel rounded-2xl w-full max-w-sm p-6">
+            <h2 className="text-xl font-light text-white/90 mb-2">
+              Delete Appointment?
+            </h2>
+            <p className="text-sm text-white/50 mb-5">
+              This action cannot be undone. To confirm, type the text below:
+            </p>
+
+            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 mb-4">
+              <p className="text-sm font-mono text-red-300/80">
+                yes i want to cancel frfr
+              </p>
+            </div>
+
+            <input
+              type="text"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder="Type the text above..."
+              className="w-full glass-input px-4 py-3 rounded-xl text-sm text-white/90 placeholder-white/30 mb-5"
+              autoFocus
+            />
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setDeleteConfirmText("");
+                }}
+                className="flex-1 glass-button py-3 rounded-xl text-sm font-medium text-white/60 hover:bg-white/10 transition-colors"
+              >
+                Keep It
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                disabled={
+                  deleteConfirmText !== "yes i want to cancel frfr" ||
+                  processing
+                }
+                className="flex-1 bg-red-500/20 border border-red-500/30 text-red-300 py-3 rounded-xl text-sm font-medium hover:bg-red-500/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {processing ? "Deleting..." : "Yes, Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

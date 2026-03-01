@@ -14,7 +14,7 @@ import {
   subMonths,
   getDay,
 } from "date-fns";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, CheckCircle } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { isAdmin } from "@/lib/utils";
 import { useUser } from "@clerk/nextjs";
@@ -212,7 +212,7 @@ export default function Calendar() {
               {hasAppointments && inMonth && (
                 <div className="flex flex-wrap gap-0.5 sm:gap-1 mt-auto w-full">
                   {dayAppointments.slice(0, 5).map((apt, idx) => (
-                    <span
+                    <div
                       key={apt.$id || idx}
                       role="button"
                       tabIndex={0}
@@ -221,18 +221,35 @@ export default function Calendar() {
                         if (e.key === "Enter")
                           handleDotClick(e as unknown as React.MouseEvent, apt);
                       }}
-                      className={`
-                        w-1.5 h-1.5 sm:w-2.5 sm:h-2.5 rounded-full transition-all duration-200 hover:scale-150 cursor-pointer
-                        ${
-                          apt.status === "approved"
-                            ? "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]"
-                            : apt.status === "rejected"
-                              ? "bg-red-400 shadow-[0_0_6px_rgba(248,113,113,0.3)]"
-                              : "bg-white/30"
-                        }
-                      `}
-                      title={`${apt.arrivalTime} - ${apt.finishedTime}` || " "}
-                    />
+                      className={`transition-all duration-200 hover:scale-150 cursor-pointer ${
+                        apt.status === "completed"
+                          ? "text-emerald-400"
+                          : "w-1.5 h-1.5 sm:w-2.5 sm:h-2.5 rounded-full"
+                      }`}
+                      title={`${apt.arrivalTime || apt.requestedTime} - ${apt.finishedTime || ""}`}
+                      style={
+                        apt.status === "completed"
+                          ? {}
+                          : {
+                              backgroundColor:
+                                apt.status === "approved"
+                                  ? "rgb(52,211,153)"
+                                  : apt.status === "rejected"
+                                    ? "rgb(248,113,113)"
+                                    : "rgba(255,255,255,0.3)",
+                              boxShadow:
+                                apt.status === "approved"
+                                  ? "0 0 6px rgba(52,211,153,0.5)"
+                                  : apt.status === "rejected"
+                                    ? "0 0 6px rgba(248,113,113,0.3)"
+                                    : "none",
+                            }
+                      }
+                    >
+                      {apt.status === "completed" && (
+                        <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                      )}
+                    </div>
                   ))}
                   {dayAppointments.length > 5 && (
                     <span className="text-[10px] text-white/40">

@@ -5,6 +5,7 @@ import { X, Plus, Trash2, Calendar, Clock, Save } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { useAvailability } from "@/hooks/useData";
 import { WEEKDAYS, formatTime } from "@/lib/utils";
+import TimeSelector from "./TimeSelector";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
 
@@ -290,42 +291,28 @@ export default function AvailabilityPanel() {
                   </div>
 
                   {day.enabled && (
-                    <div className="flex items-center gap-2 pl-0 sm:pl-4">
-                      <select
-                        value={day.startTime}
-                        onChange={(e) =>
-                          updateDay(idx, { startTime: e.target.value })
-                        }
-                        className="glass-input rounded-lg px-2 py-1.5 text-xs text-white/90 bg-white/5 flex-1 min-w-0"
-                      >
-                        {timeOptions.map((t) => (
-                          <option
-                            key={t}
-                            value={t}
-                            className="bg-slate-900 text-white"
-                          >
-                            {formatTime(t)}
-                          </option>
-                        ))}
-                      </select>
+                    <div className="flex items-center gap-2 pl-0 sm:pl-4 flex-wrap sm:flex-nowrap">
+                      <div className="flex-1 min-w-0">
+                        <TimeSelector
+                          value={day.startTime}
+                          onChange={(t) => updateDay(idx, { startTime: t })}
+                          label="Start"
+                          showLabel={false}
+                          showAmPmButtons={false}
+                          className="flex-1"
+                        />
+                      </div>
                       <span className="text-white/30 text-xs shrink-0">to</span>
-                      <select
-                        value={day.endTime}
-                        onChange={(e) =>
-                          updateDay(idx, { endTime: e.target.value })
-                        }
-                        className="glass-input rounded-lg px-2 py-1.5 text-xs text-white/90 bg-white/5 flex-1 min-w-0"
-                      >
-                        {timeOptions.map((t) => (
-                          <option
-                            key={t}
-                            value={t}
-                            className="bg-slate-900 text-white"
-                          >
-                            {formatTime(t)}
-                          </option>
-                        ))}
-                      </select>
+                      <div className="flex-1 min-w-0">
+                        <TimeSelector
+                          value={day.endTime}
+                          onChange={(t) => updateDay(idx, { endTime: t })}
+                          label="End"
+                          showLabel={false}
+                          showAmPmButtons={false}
+                          className="flex-1"
+                        />
+                      </div>
                     </div>
                   )}
                 </div>
@@ -386,38 +373,28 @@ export default function AvailabilityPanel() {
               </div>
 
               {!overrideClosed && (
-                <div className="flex items-center gap-2">
-                  <select
-                    value={overrideStart}
-                    onChange={(e) => setOverrideStart(e.target.value)}
-                    className="glass-input rounded-lg px-2 py-2 text-sm text-white/90 bg-white/5 flex-1"
-                  >
-                    {timeOptions.map((t) => (
-                      <option
-                        key={t}
-                        value={t}
-                        className="bg-slate-900 text-white"
-                      >
-                        {formatTime(t)}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="text-white/30 text-sm">to</span>
-                  <select
-                    value={overrideEnd}
-                    onChange={(e) => setOverrideEnd(e.target.value)}
-                    className="glass-input rounded-lg px-2 py-2 text-sm text-white/90 bg-white/5 flex-1"
-                  >
-                    {timeOptions.map((t) => (
-                      <option
-                        key={t}
-                        value={t}
-                        className="bg-slate-900 text-white"
-                      >
-                        {formatTime(t)}
-                      </option>
-                    ))}
-                  </select>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex-1 min-w-[200px]">
+                    <TimeSelector
+                      value={overrideStart}
+                      onChange={setOverrideStart}
+                      label="Start"
+                      showLabel={false}
+                      showAmPmButtons={false}
+                      className="flex-1"
+                    />
+                  </div>
+                  <span className="text-white/30 text-sm shrink-0">to</span>
+                  <div className="flex-1 min-w-[200px]">
+                    <TimeSelector
+                      value={overrideEnd}
+                      onChange={setOverrideEnd}
+                      label="End"
+                      showLabel={false}
+                      showAmPmButtons={false}
+                      className="flex-1"
+                    />
+                  </div>
                 </div>
               )}
 
