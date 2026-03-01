@@ -526,16 +526,11 @@ export default function BookingModal() {
           <button
             type="submit"
             disabled={submitting || !!timeOverlap}
-            className="w-full primary-button py-3 rounded-xl text-sm font-medium transition-all duration-200"
+            className={`w-full primary-button py-3 rounded-xl text-sm font-medium transition-all duration-200 ${submitting ? "submitting" : ""}`}
           >
-            {submitting ? (
-              <span className="flex items-center justify-center gap-2">
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Submitting...
-              </span>
-            ) : (
-              "Submit Request"
-            )}
+            <span className="relative z-10">
+              {submitting ? "Submitting..." : "Submit Request"}
+            </span>
           </button>
         </form>
       </div>

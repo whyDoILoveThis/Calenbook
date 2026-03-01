@@ -311,6 +311,7 @@ export default function AvailabilityPanel() {
             </button>
             {showSettingsDropdown && (
               <div className="absolute right-0 top-full mt-2 w-48 glass-panel rounded-xl border border-white/10 shadow-xl z-20 overflow-hidden">
+                {/* TODO:add button to the settings dropdown that will open a modal with controls to send custom sms or email or both at once with twilio */}
                 <button
                   onClick={() => {
                     setShowSettingsDropdown(false);

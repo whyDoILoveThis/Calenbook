@@ -40,7 +40,6 @@ export default function Header() {
         {userIsAdmin && (
           <span className="flex items-center gap-1 text-xs bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded-full border border-purple-500/20">
             <Shield className="w-3 h-3" />
-            Admin
           </span>
         )}
       </div>
