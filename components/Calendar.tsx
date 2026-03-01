@@ -198,7 +198,7 @@ export default function Calendar() {
                       ? "glass-cell hover:bg-white/10"
                       : ""
                 }
-                ${today ? "ring-1 ring-purple-400/50" : ""}
+                ${today ? "ring-1 ring-purple-600/50" : ""}
               `}
             >
               <span

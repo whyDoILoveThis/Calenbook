@@ -4,19 +4,24 @@ import { useUser } from "@clerk/nextjs";
 import { X } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { formatTime } from "@/lib/utils";
+import IconDocument from "./icons/IconDocument";
 
 export default function UserAppointmentsList() {
   const { user } = useUser();
   const {
     appointments,
+    selectedDate,
     showUserAppointments,
     setShowUserAppointments,
     setSelectedAppointment,
     setShowAppointmentDetail,
+    setShowBookingModal,
   } = useAppStore();
 
   const userAppointments = appointments.filter(
-    (apt) => apt.userEmail === user?.primaryEmailAddress?.emailAddress,
+    (apt) =>
+      apt.userEmail === user?.primaryEmailAddress?.emailAddress &&
+      apt.date === selectedDate,
   );
 
   const getStatusColor = (status: string) => {
@@ -35,14 +40,13 @@ export default function UserAppointmentsList() {
     return status.charAt(0).toUpperCase() + status.slice(1);
   };
 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr + "T00:00:00");
-    return date.toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    });
-  };
+  const formattedDate = selectedDate
+    ? new Date(selectedDate + "T00:00:00").toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+      })
+    : "";
 
   if (!showUserAppointments) return null;
 
@@ -51,20 +55,39 @@ export default function UserAppointmentsList() {
       <div className="glass-panel rounded-2xl w-full max-w-2xl max-h-96 overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-          <h2 className="text-xl font-light text-white/90">My Appointments</h2>
-          <button
-            onClick={() => setShowUserAppointments(false)}
-            className="text-white/60 hover:text-white/90 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div>
+            <h2 className="text-xl font-light text-white/90">
+              Your Appointments
+            </h2>
+            {formattedDate && (
+              <p className="text-sm text-white/40 mt-0.5">{formattedDate}</p>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setShowUserAppointments(false);
+                setShowBookingModal(true);
+              }}
+              className="text-white/60 hover:text-white/90 transition-colors p-1.5 rounded-lg hover:bg-white/10"
+              title="Book another appointment"
+            >
+              <IconDocument size={20} />
+            </button>
+            <button
+              onClick={() => setShowUserAppointments(false)}
+              className="text-white/60 hover:text-white/90 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Appointments List */}
         <div className="overflow-y-auto flex-1">
           {userAppointments.length === 0 ? (
             <div className="flex items-center justify-center h-32 text-white/50">
-              <p>No appointments yet</p>
+              <p>No appointments for this day</p>
             </div>
           ) : (
             <div className="space-y-2 p-4">
@@ -82,7 +105,6 @@ export default function UserAppointmentsList() {
                     <div className="flex items-center gap-3 flex-wrap">
                       <div className="flex flex-col gap-1">
                         <p className="text-white/90 font-light">
-                          {formatDate(apt.date)} •{" "}
                           {formatTime(apt.requestedTime)}
                         </p>
                         <p className="text-xs text-white/50">

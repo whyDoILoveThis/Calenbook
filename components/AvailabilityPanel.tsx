@@ -345,7 +345,7 @@ export default function AvailabilityPanel() {
             onClick={() => setTab("hours")}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-all ${
               tab === "hours"
-                ? "bg-purple-500/20 border border-purple-400/30 text-purple-200"
+                ? "bg-purple-600/20 border border-purple-600/30 text-purple-300"
                 : "glass-button"
             }`}
           >
@@ -356,7 +356,7 @@ export default function AvailabilityPanel() {
             onClick={() => setTab("overrides")}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-all ${
               tab === "overrides"
-                ? "bg-purple-500/20 border border-purple-400/30 text-purple-200"
+                ? "bg-purple-600/20 border border-purple-600/30 text-purple-300"
                 : "glass-button"
             }`}
           >

@@ -45,7 +45,7 @@ export default function Header() {
         )}
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-6">
         {userIsAdmin ? (
           <>
             <button

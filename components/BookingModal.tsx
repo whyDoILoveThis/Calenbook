@@ -373,7 +373,7 @@ export default function BookingModal() {
                 placeholder="Select a time"
                 className="flex-1"
               />
-              <div className="flex rounded-xl overflow-hidden border border-purple-400/20">
+              <div className="flex rounded-xl overflow-hidden border border-purple-600/20">
                 <button
                   type="button"
                   onClick={() => {
@@ -382,7 +382,7 @@ export default function BookingModal() {
                   }}
                   className={`px-3 py-2 text-sm font-medium transition-all ${
                     ampm === "AM"
-                      ? "bg-purple-500/30 text-purple-200"
+                      ? "bg-purple-600/30 text-purple-300"
                       : "bg-white/5 text-white/50 hover:bg-white/10"
                   }`}
                 >
@@ -396,7 +396,7 @@ export default function BookingModal() {
                   }}
                   className={`px-3 py-2 text-sm font-medium transition-all ${
                     ampm === "PM"
-                      ? "bg-purple-500/30 text-purple-200"
+                      ? "bg-purple-600/30 text-purple-300"
                       : "bg-white/5 text-white/50 hover:bg-white/10"
                   }`}
                 >
