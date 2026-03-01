@@ -109,9 +109,17 @@ export default function Calendar() {
       return;
     }
 
-    // Regular user - open booking modal
+    // Regular user - check if they have appointments on this day
+    const dayAppointments = appointmentsByDate[dateStr];
+    const userHasAppointments =
+      dayAppointments && dayAppointments.some((apt) => apt.userId === user?.id);
+
     setSelectedDate(dateStr);
-    setShowBookingModal(true);
+    if (userHasAppointments) {
+      useAppStore.getState().setShowUserAppointments(true);
+    } else {
+      setShowBookingModal(true);
+    }
   };
 
   const handleDayKeyDown = (e: React.KeyboardEvent, date: Date) => {
@@ -216,9 +224,9 @@ export default function Calendar() {
                     const isCompleted = apt.status === "completed";
                     const statusDotColor =
                       apt.status === "approved"
-                        ? "rgb(52,211,153)"      // green
+                        ? "rgb(52,211,153)" // green
                         : apt.status === "rejected"
-                          ? "rgb(248,113,113)"    // red
+                          ? "rgb(248,113,113)" // red
                           : "rgba(255,255,255,0.6)"; // pending – subtle white
 
                     return (

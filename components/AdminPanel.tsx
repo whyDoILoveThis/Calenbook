@@ -229,7 +229,7 @@ export default function AdminPanel() {
 
         {view === "list" ? (
           <>
-            <h2 className="text-xl font-light text-white/90 mb-1">
+            <h2 className="text-xl mt-6 font-light text-white/90 mb-1">
               {selectedDate
                 ? `Appointments: ${format(
                     new Date(selectedDate + "T00:00:00"),
@@ -290,14 +290,22 @@ export default function AdminPanel() {
                   <p className="text-xs text-white/40 truncate">
                     {apt.description}
                   </p>
-                  <div className="flex gap-4 mt-2 text-xs text-white/30">
+                  <div className="flex flex-col gap-4 mt-2 text-xs text-white/30">
                     <span>Requested: {formatTime(apt.requestedTime)}</span>
-                    {apt.arrivalTime && (
-                      <span>Arrival: {formatTime(apt.arrivalTime)}</span>
-                    )}
-                    {apt.finishedTime && (
-                      <span>Finished: {formatTime(apt.finishedTime)}</span>
-                    )}
+                    <span className="flex items-center gap-1">
+                      {apt.arrivalTime && (
+                        <span>
+                          <span className="text-blue-300">Arrival:</span>{" "}
+                          {formatTime(apt.arrivalTime)}
+                        </span>
+                      )}
+                      {apt.finishedTime && (
+                        <span>
+                          <span className="text-green-300">Finished:</span>{" "}
+                          {formatTime(apt.finishedTime)}
+                        </span>
+                      )}
+                    </span>
                   </div>
                 </button>
               ))}
@@ -338,6 +346,24 @@ export default function AdminPanel() {
                       Requested: {formatTime(selectedAppointment.requestedTime)}
                     </span>
                   </div>
+                  {/* add arrival and finished if they exist */}
+                  {selectedAppointment.arrivalTime && (
+                    <div className="flex items-center gap-3">
+                      <span className="w-4" />
+                      <span className="text-sm text-white/60">
+                        Arrival: {formatTime(selectedAppointment.arrivalTime)}
+                      </span>
+                    </div>
+                  )}
+                  {selectedAppointment.finishedTime && (
+                    <div className="flex items-center gap-3">
+                      <span className="w-4" />
+
+                      <span className="text-sm text-white/60">
+                        Finished: {formatTime(selectedAppointment.finishedTime)}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Description */}

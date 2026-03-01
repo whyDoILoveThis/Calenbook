@@ -15,7 +15,12 @@ import { useAppointments } from "@/hooks/useData";
 import { useUser } from "@clerk/nextjs";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
-import { isAdmin, formatTime, timeToMinutes, getOperatingHours } from "@/lib/utils";
+import {
+  isAdmin,
+  formatTime,
+  timeToMinutes,
+  getOperatingHours,
+} from "@/lib/utils";
 import IconList from "./icons/IconList";
 import ColorDotSelector, { DEFAULT_DOT_COLOR } from "./ColorDotSelector";
 
@@ -316,9 +321,9 @@ export default function BookingModal() {
       />
 
       {/* Modal */}
-      <div className="glass-panel relative w-full max-w-lg max-h-[90vh] overflow-y-auto z-10 rounded-2xl p-6">
+      <div className="glass-panel pt-12 relative w-full max-w-lg max-h-[90vh] overflow-y-auto z-10 rounded-2xl p-6">
         {/* Close button */}
-        <div className="absolute top-4 right-4 flex gap-6">
+        <div className="absolute top-4 right-4 flex gap-4">
           {/* Show list button only if this date has appointments */}
           {appointments.filter((apt) => apt.date === selectedDate).length >
             0 && (

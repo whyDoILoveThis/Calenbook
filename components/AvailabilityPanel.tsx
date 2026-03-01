@@ -1,12 +1,22 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
-import { X, Plus, Trash2, Calendar, Clock, Save } from "lucide-react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import {
+  X,
+  Plus,
+  Trash2,
+  Calendar,
+  Clock,
+  Save,
+  Settings,
+  AlertTriangle,
+} from "lucide-react";
 import { useAppStore } from "@/lib/store";
-import { useAvailability } from "@/hooks/useData";
+import { useAvailability, useAppointments } from "@/hooks/useData";
 import { WEEKDAYS, formatTime } from "@/lib/utils";
 import TimeSelector from "./TimeSelector";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth } from "date-fns";
+import { useUser } from "@clerk/nextjs";
 import toast from "react-hot-toast";
 
 /* ------------------------------------------------------------------ */
@@ -26,17 +36,83 @@ const DEFAULT_END = "17:00";
 /* ------------------------------------------------------------------ */
 /*  Component                                                         */
 /* ------------------------------------------------------------------ */
+const CLEAR_CONFIRMATION_PHRASE =
+  "yes i understand i am clearing and entire month. do it now. im seriously serious frfr.";
+
 export default function AvailabilityPanel() {
-  const { availability, setShowAvailabilityPanel } = useAppStore();
+  const { availability, setShowAvailabilityPanel, appointments, currentMonth } =
+    useAppStore();
   const {
     createAvailability,
     updateAvailability,
     deleteAvailability,
     fetchAvailability,
   } = useAvailability();
+  const { deleteAppointment } = useAppointments();
+  const { user } = useUser();
 
   const [tab, setTab] = useState<"hours" | "overrides">("hours");
   const [saving, setSaving] = useState(false);
+  const [showSettingsDropdown, setShowSettingsDropdown] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [clearInput, setClearInput] = useState("");
+  const [clearing, setClearing] = useState(false);
+  const settingsRef = useRef<HTMLDivElement>(null);
+
+  // Close settings dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (
+        settingsRef.current &&
+        !settingsRef.current.contains(e.target as Node)
+      ) {
+        setShowSettingsDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const monthLabel = format(currentMonth, "MMMM yyyy");
+
+  const handleClearCalendar = async () => {
+    if (clearInput !== CLEAR_CONFIRMATION_PHRASE) return;
+    if (!user?.id) return;
+
+    const monthStart = startOfMonth(currentMonth);
+    const monthEnd = endOfMonth(currentMonth);
+    const startStr = format(monthStart, "yyyy-MM-dd");
+    const endStr = format(monthEnd, "yyyy-MM-dd");
+
+    const monthAppointments = appointments.filter(
+      (apt) => apt.date >= startStr && apt.date <= endStr,
+    );
+
+    if (monthAppointments.length === 0) {
+      toast.error("No appointments to clear this month.");
+      return;
+    }
+
+    setClearing(true);
+    try {
+      let deleted = 0;
+      for (const apt of monthAppointments) {
+        await deleteAppointment(apt.$id, user.id);
+        deleted++;
+      }
+      toast.success(
+        `Cleared ${deleted} appointment${deleted !== 1 ? "s" : ""} from ${monthLabel}.`,
+      );
+      setShowClearConfirm(false);
+      setClearInput("");
+      setShowSettingsDropdown(false);
+    } catch (error) {
+      console.error("Failed to clear calendar:", error);
+      toast.error("Failed to clear some appointments. Try again.");
+    } finally {
+      setClearing(false);
+    }
+  };
 
   /* ---------- Weekly schedule state ---------- */
   const weeklyRules = useMemo(
@@ -224,12 +300,37 @@ export default function AvailabilityPanel() {
       />
 
       <div className="glass-panel relative w-full max-w-lg max-h-[90vh] overflow-y-auto z-10 rounded-2xl p-6">
-        <button
-          onClick={() => setShowAvailabilityPanel(false)}
-          className="absolute top-4 right-4 glass-button p-1.5 rounded-lg"
-        >
-          <X className="w-4 h-4" />
-        </button>
+        <div className="absolute top-4 right-4 flex items-center gap-1.5">
+          {/* Settings dropdown */}
+          <div ref={settingsRef} className="relative">
+            <button
+              onClick={() => setShowSettingsDropdown((v) => !v)}
+              className="glass-button p-1.5 rounded-lg"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+            {showSettingsDropdown && (
+              <div className="absolute right-0 top-full mt-2 w-48 glass-panel rounded-xl border border-white/10 shadow-xl z-20 overflow-hidden">
+                <button
+                  onClick={() => {
+                    setShowSettingsDropdown(false);
+                    setShowClearConfirm(true);
+                  }}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-300 hover:bg-red-500/10 transition-colors text-left"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Clear Calendar
+                </button>
+              </div>
+            )}
+          </div>
+          <button
+            onClick={() => setShowAvailabilityPanel(false)}
+            className="glass-button p-1.5 rounded-lg"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
 
         <h2 className="text-xl font-light text-white/90 mb-1">
           Manage Availability
@@ -507,6 +608,93 @@ export default function AvailabilityPanel() {
           </div>
         )}
       </div>
+
+      {/* Clear Calendar Confirmation Modal */}
+      {showClearConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => {
+              setShowClearConfirm(false);
+              setClearInput("");
+            }}
+          />
+          <div className="glass-panel relative z-10 w-full max-w-md rounded-2xl p-6">
+            <button
+              onClick={() => {
+                setShowClearConfirm(false);
+                setClearInput("");
+              }}
+              className="absolute top-4 right-4 glass-button p-1.5 rounded-lg"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 rounded-xl bg-red-500/20 border border-red-500/30">
+                <AlertTriangle className="w-5 h-5 text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-light text-white/90">
+                  Clear Calendar
+                </h3>
+                <p className="text-xs text-white/40">{monthLabel}</p>
+              </div>
+            </div>
+
+            <p className="text-sm text-white/60 mb-2">
+              This will permanently delete{" "}
+              <span className="text-red-300 font-medium">all appointments</span>{" "}
+              for <span className="text-white/90">{monthLabel}</span>. This
+              action cannot be undone.
+            </p>
+
+            <p className="text-sm text-white/50 mb-3">
+              Type the following phrase exactly to confirm:
+            </p>
+            <div className="glass-button rounded-xl px-3 py-2 mb-4 text-xs text-yellow-300/80 font-mono break-words select-all">
+              {CLEAR_CONFIRMATION_PHRASE}
+            </div>
+
+            <input
+              type="text"
+              value={clearInput}
+              onChange={(e) => setClearInput(e.target.value)}
+              placeholder="Type the confirmation phrase..."
+              className="w-full glass-button rounded-xl px-4 py-2.5 text-sm text-white/90 placeholder-white/30 outline-none focus:ring-1 focus:ring-red-500/40 mb-4"
+              disabled={clearing}
+              autoFocus
+            />
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setShowClearConfirm(false);
+                  setClearInput("");
+                }}
+                className="flex-1 glass-button px-4 py-2.5 rounded-xl text-sm text-white/60 hover:text-white/90 transition-colors"
+                disabled={clearing}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleClearCalendar}
+                disabled={clearInput !== CLEAR_CONFIRMATION_PHRASE || clearing}
+                className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium transition-all disabled:opacity-30 disabled:cursor-not-allowed bg-red-500/20 border border-red-500/30 text-red-300 hover:bg-red-500/30"
+              >
+                {clearing ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="w-3.5 h-3.5 border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin" />
+                    Clearing...
+                  </span>
+                ) : (
+                  "Clear All Appointments"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
