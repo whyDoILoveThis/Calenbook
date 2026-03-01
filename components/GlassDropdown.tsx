@@ -74,7 +74,9 @@ export default function GlassDropdown({
                 key={opt.value}
                 type="button"
                 disabled={opt.disabled}
-                className={`block w-full text-left px-4 py-2 text-sm rounded-lg transition-all ${
+                className={`block w-full text-left px-4 py-2 text-sm transition-all ${
+                  opt.disabled ? "rounded-none" : "rounded-lg"
+                } ${
                   opt.disabled
                     ? "opacity-40 cursor-not-allowed bg-red-500/10 text-red-400/60"
                     : opt.variant === "red"
