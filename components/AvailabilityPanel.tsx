@@ -10,9 +10,15 @@ import {
   Save,
   Settings,
   AlertTriangle,
+  Users,
+  Search,
+  Mail,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
-import { useAvailability, useAppointments } from "@/hooks/useData";
+import { useAvailability, useAppointments, useUsers } from "@/hooks/useData";
+import { DbUser } from "@/lib/types";
 import { WEEKDAYS, formatTime } from "@/lib/utils";
 import TimeSelector from "./TimeSelector";
 import { format, startOfMonth, endOfMonth } from "date-fns";
@@ -40,8 +46,14 @@ const CLEAR_CONFIRMATION_PHRASE =
   "yes i understand i am clearing and entire month. do it now. im seriously serious frfr.";
 
 export default function AvailabilityPanel() {
-  const { availability, setShowAvailabilityPanel, appointments, currentMonth } =
-    useAppStore();
+  const {
+    availability,
+    setShowAvailabilityPanel,
+    appointments,
+    currentMonth,
+    setSelectedAppointment,
+    setShowAppointmentDetail,
+  } = useAppStore();
   const {
     createAvailability,
     updateAvailability,
@@ -49,7 +61,10 @@ export default function AvailabilityPanel() {
     fetchAvailability,
   } = useAvailability();
   const { deleteAppointment } = useAppointments();
+  const { listenUsers } = useUsers();
   const { user } = useUser();
+
+  const [dbUsers, setDbUsers] = useState<DbUser[]>([]);
 
   const [tab, setTab] = useState<"hours" | "overrides">("hours");
   const [saving, setSaving] = useState(false);
@@ -59,6 +74,9 @@ export default function AvailabilityPanel() {
   const [clearing, setClearing] = useState(false);
   const [clearProgress, setClearProgress] = useState(0);
   const [clearVisualProgress, setClearVisualProgress] = useState(0);
+  const [showAllUsers, setShowAllUsers] = useState(false);
+  const [userSearch, setUserSearch] = useState("");
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const settingsRef = useRef<HTMLDivElement>(null);
 
   // Close settings dropdown on outside click
@@ -74,6 +92,12 @@ export default function AvailabilityPanel() {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  // Listen to DB users in realtime
+  useEffect(() => {
+    const unsubscribe = listenUsers((users) => setDbUsers(users));
+    return () => unsubscribe();
+  }, [listenUsers]);
 
   // Smooth visual progress for clearing
   useEffect(() => {
@@ -102,6 +126,92 @@ export default function AvailabilityPanel() {
     }, 50);
     return () => clearInterval(interval);
   }, [clearing, clearProgress]);
+
+  // Merge DB users with appointment-derived data
+  const allUsers = useMemo(() => {
+    // Build appointment counts per user
+    const aptCounts = new Map<
+      string,
+      { count: number; lastDate: string; userName: string; userEmail: string }
+    >();
+    for (const apt of appointments) {
+      const existing = aptCounts.get(apt.userId);
+      if (existing) {
+        existing.count++;
+        if (apt.date > existing.lastDate) existing.lastDate = apt.date;
+        if (apt.userName && !existing.userName)
+          existing.userName = apt.userName;
+      } else {
+        aptCounts.set(apt.userId, {
+          count: 1,
+          lastDate: apt.date,
+          userName: apt.userName || "",
+          userEmail: apt.userEmail,
+        });
+      }
+    }
+
+    // Start from DB users (includes those with no appointments)
+    const merged = new Map<
+      string,
+      {
+        userId: string;
+        userName: string;
+        userEmail: string;
+        imageUrl?: string;
+        count: number;
+        lastDate: string;
+        firstSeen: number;
+        lastSeen: number;
+      }
+    >();
+
+    for (const u of dbUsers) {
+      const aptData = aptCounts.get(u.$id);
+      merged.set(u.$id, {
+        userId: u.$id,
+        userName: u.name || aptData?.userName || "",
+        userEmail: u.email || aptData?.userEmail || "",
+        imageUrl: u.imageUrl,
+        count: aptData?.count ?? 0,
+        lastDate: aptData?.lastDate ?? "",
+        firstSeen: u.firstSeen,
+        lastSeen: u.lastSeen,
+      });
+    }
+
+    // Add any appointment-only users not in DB yet
+    for (const [userId, aptData] of aptCounts) {
+      if (!merged.has(userId)) {
+        merged.set(userId, {
+          userId,
+          userName: aptData.userName,
+          userEmail: aptData.userEmail,
+          count: aptData.count,
+          lastDate: aptData.lastDate,
+          firstSeen: 0,
+          lastSeen: 0,
+        });
+      }
+    }
+
+    return Array.from(merged.values()).sort((a, b) => {
+      // Users with appointments first, then by count desc, then by lastSeen desc
+      if (b.count !== a.count) return b.count - a.count;
+      return b.lastSeen - a.lastSeen;
+    });
+  }, [appointments, dbUsers]);
+
+  const filteredUsers = useMemo(() => {
+    if (!userSearch.trim()) return allUsers;
+    const q = userSearch.toLowerCase();
+    return allUsers.filter(
+      (u) =>
+        u.userName.toLowerCase().includes(q) ||
+        u.userEmail.toLowerCase().includes(q) ||
+        u.userId.toLowerCase().includes(q),
+    );
+  }, [allUsers, userSearch]);
 
   const monthLabel = format(currentMonth, "MMMM yyyy");
 
@@ -350,6 +460,18 @@ export default function AvailabilityPanel() {
             {showSettingsDropdown && (
               <div className="absolute right-0 top-full mt-2 w-48 glass-panel rounded-xl border border-white/10 shadow-xl z-20 overflow-hidden">
                 {/* TODO:add button to the settings dropdown that will open a modal with controls to send custom sms or email or both at once with twilio */}
+                <button
+                  onClick={() => {
+                    setShowSettingsDropdown(false);
+                    setShowAllUsers(true);
+                    setUserSearch("");
+                    setSelectedUserId(null);
+                  }}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-white/70 hover:bg-white/10 transition-colors text-left"
+                >
+                  <Users className="w-4 h-4" />
+                  All Users
+                </button>
                 <button
                   onClick={() => {
                     setShowSettingsDropdown(false);
@@ -743,6 +865,228 @@ export default function AvailabilityPanel() {
                 </span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* All Users Modal */}
+      {showAllUsers && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => setShowAllUsers(false)}
+          />
+          <div className="glass-panel relative z-10 w-full max-w-md max-h-[80vh] rounded-2xl p-6 flex flex-col">
+            <button
+              onClick={() => setShowAllUsers(false)}
+              className="absolute top-4 right-4 glass-button p-1.5 rounded-lg"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 rounded-xl bg-purple-500/20 border border-purple-500/30">
+                <Users className="w-5 h-5 text-purple-300" />
+              </div>
+              <div>
+                <h3 className="text-lg font-light text-white/90">All Users</h3>
+                <p className="text-xs text-white/40">
+                  {allUsers.length} user{allUsers.length !== 1 ? "s" : ""} found
+                </p>
+              </div>
+            </div>
+
+            {/* Search */}
+            <div className="relative mb-4">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+              <input
+                type="text"
+                value={userSearch}
+                onChange={(e) => setUserSearch(e.target.value)}
+                placeholder="Search by name, email, or ID..."
+                className="w-full glass-input rounded-xl pl-10 pr-4 py-2.5 text-sm text-white/90 placeholder:text-white/20"
+                autoFocus
+              />
+            </div>
+
+            {/* User list / User appointments */}
+            {selectedUserId ? (
+              (() => {
+                const su = allUsers.find((u) => u.userId === selectedUserId);
+                const userApts = appointments
+                  .filter((apt) => apt.userId === selectedUserId)
+                  .sort((a, b) => b.date.localeCompare(a.date));
+                return (
+                  <div className="flex-1 overflow-y-auto min-h-0">
+                    {/* Back button + user info */}
+                    <button
+                      onClick={() => setSelectedUserId(null)}
+                      className="flex items-center gap-1.5 text-sm text-purple-300 hover:text-purple-200 transition-colors mb-3"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      Back to all users
+                    </button>
+
+                    <div className="flex items-center gap-3 mb-4">
+                      {su?.imageUrl ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img
+                          src={su.imageUrl}
+                          alt={su.userName || "User"}
+                          className="w-10 h-10 rounded-full object-cover border border-white/10"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-purple-500/20 border border-purple-500/30 flex items-center justify-center">
+                          <span className="text-base text-purple-300 font-medium">
+                            {(su?.userName || "?")[0].toUpperCase()}
+                          </span>
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-sm font-medium text-white/80">
+                          {su?.userName || "Anonymous"}
+                        </p>
+                        <p className="text-xs text-white/40">
+                          {su?.userEmail || "No email"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-white/40 mb-2">
+                      {userApts.length} appointment
+                      {userApts.length !== 1 ? "s" : ""}
+                    </p>
+
+                    <div className="space-y-2">
+                      {userApts.map((apt) => (
+                        <button
+                          key={apt.$id}
+                          onClick={() => {
+                            setSelectedAppointment(apt);
+                            setShowAppointmentDetail(true);
+                          }}
+                          className="glass-button p-3 rounded-xl w-full text-left hover:bg-white/10 transition-all flex items-center justify-between gap-2"
+                        >
+                          <div className="min-w-0 space-y-0.5">
+                            <div className="flex items-center gap-2">
+                              <Calendar className="w-3.5 h-3.5 text-white/40 shrink-0" />
+                              <span className="text-sm text-white/70">
+                                {apt.date}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Clock className="w-3.5 h-3.5 text-white/40 shrink-0" />
+                              <span className="text-xs text-white/50 truncate">
+                                {apt.requestedTime}
+                                {apt.arrivalTime && apt.finishedTime
+                                  ? ` → ${apt.arrivalTime} - ${apt.finishedTime}`
+                                  : ""}
+                              </span>
+                            </div>
+                            <p className="text-xs text-white/30 truncate">
+                              {apt.description}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span
+                              className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                apt.status === "approved"
+                                  ? "bg-emerald-500/20 text-emerald-300"
+                                  : apt.status === "rejected"
+                                    ? "bg-red-500/20 text-red-300"
+                                    : apt.status === "completed"
+                                      ? "bg-blue-500/20 text-blue-300"
+                                      : "bg-yellow-500/20 text-yellow-300"
+                              }`}
+                            >
+                              {apt.status}
+                            </span>
+                            <ChevronRight className="w-4 h-4 text-white/20" />
+                          </div>
+                        </button>
+                      ))}
+
+                      {userApts.length === 0 && (
+                        <p className="text-center text-white/30 py-6 text-sm">
+                          No appointments found for this user.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()
+            ) : (
+              <div className="flex-1 overflow-y-auto space-y-2 min-h-0">
+                {filteredUsers.map((u) => (
+                  <div
+                    key={u.userId}
+                    className={`glass-button rounded-xl p-3 flex gap-3 items-start ${u.count > 0 ? "cursor-pointer hover:bg-white/10" : ""} transition-all`}
+                    onClick={() => {
+                      if (u.count > 0) setSelectedUserId(u.userId);
+                    }}
+                  >
+                    {/* Avatar */}
+                    {u.imageUrl ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={u.imageUrl}
+                        alt={u.userName || "User"}
+                        className="w-9 h-9 rounded-full object-cover shrink-0 border border-white/10"
+                      />
+                    ) : (
+                      <div className="w-9 h-9 rounded-full bg-purple-500/20 border border-purple-500/30 flex items-center justify-center shrink-0">
+                        <span className="text-sm text-purple-300 font-medium">
+                          {(u.userName || "?")[0].toUpperCase()}
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="flex-1 min-w-0 space-y-0.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-medium text-white/80 truncate">
+                          {u.userName || "Anonymous"}
+                        </span>
+                        <span className="text-xs text-white/30 shrink-0">
+                          {u.count} appt{u.count !== 1 ? "s" : ""}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs text-white/40">
+                        <Mail className="w-3 h-3 shrink-0" />
+                        <span className="truncate">
+                          {u.userEmail || "No email"}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-white/25">
+                        {u.firstSeen ? (
+                          <span>
+                            Joined {new Date(u.firstSeen).toLocaleDateString()}
+                          </span>
+                        ) : (
+                          <span className="font-mono truncate max-w-[150px]">
+                            {u.userId}
+                          </span>
+                        )}
+                        {u.lastDate ? (
+                          <span>Last appt: {u.lastDate}</span>
+                        ) : u.lastSeen ? (
+                          <span>
+                            Seen {new Date(u.lastSeen).toLocaleDateString()}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {filteredUsers.length === 0 && (
+                  <p className="text-center text-white/30 py-8 text-sm">
+                    {userSearch
+                      ? "No users match your search"
+                      : "No users found yet"}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}

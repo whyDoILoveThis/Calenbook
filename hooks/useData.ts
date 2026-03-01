@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useAppStore } from "@/lib/store";
-import { Appointment, Availability } from "@/lib/types";
+import { Appointment, Availability, DbUser } from "@/lib/types";
 import toast from "react-hot-toast";
 import type { DataSnapshot } from "firebase/database";
-import { ref, onValue, off } from "firebase/database";
+import { ref, onValue, off, get, set } from "firebase/database";
 import { db } from "@/lib/firebase";
+import { useUser } from "@clerk/nextjs";
 
 export function useAppointments() {
   const { setAppointments, setLoading } = useAppStore();
@@ -389,4 +390,88 @@ export function useAvailability() {
   );
 
   return { fetchAvailability, createAvailability, updateAvailability, deleteAvailability };
+}
+
+/**
+ * Syncs the current Clerk user to Firebase `users/{clerkId}` on mount.
+ * Updates `lastSeen` on every load; sets `firstSeen` only on first visit.
+ */
+export function useUserSync() {
+  const { user, isLoaded } = useUser();
+  const syncedRef = useRef(false);
+
+  useEffect(() => {
+    if (!isLoaded || !user || syncedRef.current) return;
+    syncedRef.current = true;
+
+    const userId = user.id;
+    const userRef = ref(db, `users/${userId}`);
+
+    (async () => {
+      try {
+        const snapshot = await get(userRef);
+        const now = Date.now();
+        const name = user.fullName || user.firstName || "";
+        const email = user.emailAddresses?.[0]?.emailAddress || "";
+        const imageUrl = user.imageUrl || "";
+
+        if (snapshot.exists()) {
+          // Update lastSeen + any changed profile info
+          const existing = snapshot.val() as Record<string, unknown>;
+          const updates: Record<string, unknown> = { lastSeen: now };
+          if (name && name !== existing.name) updates.name = name;
+          if (email && email !== existing.email) updates.email = email;
+          if (imageUrl && imageUrl !== existing.imageUrl) updates.imageUrl = imageUrl;
+
+          const { set: fbSet } = await import("firebase/database");
+          const updateRef = ref(db, `users/${userId}`);
+          await fbSet(updateRef, { ...existing, ...updates });
+        } else {
+          // First time — create record
+          await set(userRef, {
+            name,
+            email,
+            imageUrl,
+            firstSeen: now,
+            lastSeen: now,
+          });
+        }
+      } catch (err) {
+        console.error("[useUserSync] Failed to sync user:", err);
+      }
+    })();
+  }, [isLoaded, user]);
+}
+
+/**
+ * Realtime listener for all users stored in Firebase.
+ * Returns the current list and a function to start/stop listening.
+ */
+export function useUsers() {
+  const listenUsers = useCallback(
+    (onUsers: (users: DbUser[]) => void) => {
+      const usersRef = ref(db, "users");
+      const callback = (snapshot: DataSnapshot) => {
+        if (!snapshot.exists()) {
+          onUsers([]);
+          return;
+        }
+        const raw = snapshot.val() as Record<string, Record<string, unknown>>;
+        const users: DbUser[] = Object.entries(raw).map(([key, val]) => ({
+          $id: key,
+          name: String(val.name ?? ""),
+          email: String(val.email ?? ""),
+          imageUrl: val.imageUrl ? String(val.imageUrl) : undefined,
+          firstSeen: Number(val.firstSeen ?? 0),
+          lastSeen: Number(val.lastSeen ?? 0),
+        }));
+        onUsers(users);
+      };
+      onValue(usersRef, callback);
+      return () => off(usersRef, "value", callback);
+    },
+    [],
+  );
+
+  return { listenUsers };
 }

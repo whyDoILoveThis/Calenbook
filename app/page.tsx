@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
 import { format } from "date-fns";
 import { useAppStore } from "@/lib/store";
-import { useAppointments, useAvailability } from "@/hooks/useData";
+import { useAppointments, useAvailability, useUserSync } from "@/hooks/useData";
 import Calendar from "@/components/Calendar";
 import Header from "@/components/Header";
 import BookingModal from "@/components/BookingModal";
@@ -28,6 +28,9 @@ export default function Home() {
 
   const { listenAppointments } = useAppointments();
   const { fetchAvailability } = useAvailability();
+
+  // Sync current user to Firebase on sign-in
+  useUserSync();
 
   useEffect(() => {
     if (!isLoaded) return;

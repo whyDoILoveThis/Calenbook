@@ -38,3 +38,12 @@ export interface AdminApprovalData {
   arrivalTime: string;
   finishedTime: string;
 }
+
+export interface DbUser {
+  $id: string; // Clerk user ID
+  name: string;
+  email: string;
+  imageUrl?: string;
+  firstSeen: number; // timestamp ms
+  lastSeen: number;  // timestamp ms
+}
