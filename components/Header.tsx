@@ -71,7 +71,10 @@ export default function Header() {
           </>
         ) : (
           <button
-            onClick={() => setShowUserAppointments(true)}
+            onClick={() => {
+              useAppStore.getState().setSelectedDate(null);
+              setShowUserAppointments(true);
+            }}
             className="glass-button px-3 py-2 rounded-xl text-sm flex items-center gap-2 relative"
           >
             <Calendar className="w-4 h-4" />

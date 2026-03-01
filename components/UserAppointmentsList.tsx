@@ -18,10 +18,12 @@ export default function UserAppointmentsList() {
     setShowBookingModal,
   } = useAppStore();
 
+  const isDateFiltered = !!selectedDate;
+
   const userAppointments = appointments.filter(
     (apt) =>
       apt.userEmail === user?.primaryEmailAddress?.emailAddress &&
-      apt.date === selectedDate,
+      (!isDateFiltered || apt.date === selectedDate),
   );
 
   const getStatusColor = (status: string) => {
@@ -57,23 +59,25 @@ export default function UserAppointmentsList() {
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
           <div>
             <h2 className="text-xl font-light text-white/90">
-              Your Appointments
+              {isDateFiltered ? "Your Appointments" : "My Appointments"}
             </h2>
             {formattedDate && (
               <p className="text-sm text-white/40 mt-0.5">{formattedDate}</p>
             )}
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                setShowUserAppointments(false);
-                setShowBookingModal(true);
-              }}
-              className="text-white/60 hover:text-white/90 transition-colors p-1.5 rounded-lg hover:bg-white/10"
-              title="Book another appointment"
-            >
-              <IconDocument size={20} />
-            </button>
+            {isDateFiltered && (
+              <button
+                onClick={() => {
+                  setShowUserAppointments(false);
+                  setShowBookingModal(true);
+                }}
+                className="text-white/60 hover:text-white/90 transition-colors p-1.5 rounded-lg hover:bg-white/10"
+                title="Book another appointment"
+              >
+                <IconDocument size={20} />
+              </button>
+            )}
             <button
               onClick={() => setShowUserAppointments(false)}
               className="text-white/60 hover:text-white/90 transition-colors"
@@ -87,7 +91,11 @@ export default function UserAppointmentsList() {
         <div className="overflow-y-auto flex-1">
           {userAppointments.length === 0 ? (
             <div className="flex items-center justify-center h-32 text-white/50">
-              <p>No appointments for this day</p>
+              <p>
+                {isDateFiltered
+                  ? "No appointments for this day"
+                  : "No appointments yet"}
+              </p>
             </div>
           ) : (
             <div className="space-y-2 p-4">
@@ -105,6 +113,18 @@ export default function UserAppointmentsList() {
                     <div className="flex items-center gap-3 flex-wrap">
                       <div className="flex flex-col gap-1">
                         <p className="text-white/90 font-light">
+                          {!isDateFiltered && (
+                            <>
+                              {new Date(
+                                apt.date + "T00:00:00",
+                              ).toLocaleDateString("en-US", {
+                                weekday: "short",
+                                month: "short",
+                                day: "numeric",
+                              })}
+                              {" • "}
+                            </>
+                          )}
                           {formatTime(apt.requestedTime)}
                         </p>
                         <p className="text-xs text-white/50">
