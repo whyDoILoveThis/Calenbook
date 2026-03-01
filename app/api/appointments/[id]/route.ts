@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getById, getAll, updateById, deleteById } from "@/lib/firebase-helpers";
 import { isTimeConflict, isAdmin } from "@/lib/utils";
 import { Appointment } from "@/lib/types";
+import { storage, BUCKET_ID } from "@/lib/appwrite-server";
 
 // PATCH update appointment (approve/reject)
 export async function PATCH(
@@ -90,6 +91,18 @@ if (!isAdmin(userId ?? undefined) && appointment.userId !== userId) {
         return NextResponse.json(
         { error: "You can only delete your own appointments" },
         { status: 403 }
+      );
+    }
+
+    // Delete associated images from Appwrite storage
+    const imageIds = appointment.imageIds;
+    if (Array.isArray(imageIds) && imageIds.length > 0) {
+      await Promise.all(
+        imageIds.map((fileId: string) =>
+          storage.deleteFile(BUCKET_ID, fileId).catch((err: unknown) => {
+            console.error(`Failed to delete image ${fileId} from storage:`, err);
+          })
+        )
       );
     }
 

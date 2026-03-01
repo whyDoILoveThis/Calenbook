@@ -201,20 +201,18 @@ export default function Calendar() {
                 ${today ? "ring-1 ring-purple-600/50" : ""}
               `}
             >
-              <span
-                className={`
-                  text-xs sm:text-sm font-medium leading-none
-                  ${!inMonth ? "text-white/20" : ""}
-                  ${today ? "text-purple-300" : "text-white/70"}
-                  ${unavailable && inMonth ? "text-red-400/80" : ""}
-                `}
-              >
-                {format(date, "d")}
-              </span>
-
-              {unavailable && inMonth && (
-                <div className="w-1.5 h-1.5 rounded-full bg-red-400/60 mt-0.5" />
-              )}
+              <div className="flex items-center">
+                <span
+                  className={`
+                    text-xs sm:text-sm font-medium leading-none
+                    ${!inMonth ? "text-white/20" : ""}
+                    ${today ? "text-purple-300" : "text-white/70"}
+                    ${unavailable && inMonth ? "text-red-400/80" : ""}
+                  `}
+                >
+                  {format(date, "d")}
+                </span>
+              </div>
 
               {/* Appointment dots */}
               {hasAppointments && inMonth && (

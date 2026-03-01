@@ -228,6 +228,26 @@ body::before {
   transition: transform 0.3s ease-out;
 }
 
+/* Red progress bar for destructive actions (clear calendar) */
+.clearing-progress {
+  position: relative;
+  overflow: hidden;
+  background: rgba(239, 68, 68, 0.1) !important;
+  border-color: rgba(239, 68, 68, 0.4) !important;
+  opacity: 1 !important;
+}
+
+.clearing-progress::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.35), rgba(248, 113, 113, 0.45));
+  transform-origin: left center;
+  transform: scaleX(var(--progress, 0));
+  transition: transform 0.3s ease-out;
+  border-radius: inherit;
+}
+
 
 
 /* Beautiful glassy custom scrollbar for the entire site */

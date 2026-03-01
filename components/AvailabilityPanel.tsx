@@ -57,6 +57,8 @@ export default function AvailabilityPanel() {
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [clearInput, setClearInput] = useState("");
   const [clearing, setClearing] = useState(false);
+  const [clearProgress, setClearProgress] = useState(0);
+  const [clearVisualProgress, setClearVisualProgress] = useState(0);
   const settingsRef = useRef<HTMLDivElement>(null);
 
   // Close settings dropdown on outside click
@@ -72,6 +74,34 @@ export default function AvailabilityPanel() {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  // Smooth visual progress for clearing
+  useEffect(() => {
+    if (!clearing) {
+      setClearVisualProgress(0);
+      return;
+    }
+
+    // Real deletion progress maps to 0-85% of the visual bar
+    const target = clearProgress < 100 ? (clearProgress / 100) * 85 : 85;
+
+    const interval = setInterval(() => {
+      setClearVisualProgress((prev) => {
+        // Still deleting — smoothly approach the mapped target
+        if (clearProgress < 100) {
+          const diff = target - prev;
+          if (Math.abs(diff) < 0.3) return target;
+          return prev + diff * 0.15;
+        }
+        // All deletions done, waiting for Firebase sync — creep toward 97
+        if (prev < 97) {
+          return prev + 0.3;
+        }
+        return prev;
+      });
+    }, 50);
+    return () => clearInterval(interval);
+  }, [clearing, clearProgress]);
 
   const monthLabel = format(currentMonth, "MMMM yyyy");
 
@@ -94,12 +124,20 @@ export default function AvailabilityPanel() {
     }
 
     setClearing(true);
+    setClearProgress(0);
     try {
       let deleted = 0;
+      const total = monthAppointments.length;
       for (const apt of monthAppointments) {
         await deleteAppointment(apt.$id, user.id);
         deleted++;
+        setClearProgress(Math.round((deleted / total) * 100));
       }
+
+      // Snap to 100% and let the user see it fill
+      setClearVisualProgress(100);
+      await new Promise((resolve) => setTimeout(resolve, 400));
+
       toast.success(
         `Cleared ${deleted} appointment${deleted !== 1 ? "s" : ""} from ${monthLabel}.`,
       );
@@ -681,16 +719,28 @@ export default function AvailabilityPanel() {
               <button
                 onClick={handleClearCalendar}
                 disabled={clearInput !== CLEAR_CONFIRMATION_PHRASE || clearing}
-                className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium transition-all disabled:opacity-30 disabled:cursor-not-allowed bg-red-500/20 border border-red-500/30 text-red-300 hover:bg-red-500/30"
+                className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-medium transition-all disabled:opacity-30 disabled:cursor-not-allowed bg-red-500/20 border border-red-500/30 text-red-300 hover:bg-red-500/30 ${clearing ? "clearing-progress" : ""}`}
+                style={
+                  clearing
+                    ? ({
+                        "--progress": clearVisualProgress / 100,
+                      } as React.CSSProperties)
+                    : undefined
+                }
               >
-                {clearing ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <span className="w-3.5 h-3.5 border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin" />
-                    Clearing...
-                  </span>
-                ) : (
-                  "Clear All Appointments"
-                )}
+                <span className="relative z-10 flex items-center justify-center gap-2">
+                  {clearing ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin" />
+                      Clearing
+                      {clearVisualProgress > 1
+                        ? ` ${Math.round(clearVisualProgress)}%`
+                        : "..."}
+                    </>
+                  ) : (
+                    "Clear All Appointments"
+                  )}
+                </span>
               </button>
             </div>
           </div>
