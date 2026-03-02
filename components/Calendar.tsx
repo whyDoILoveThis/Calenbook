@@ -18,6 +18,7 @@ import { ChevronLeft, ChevronRight, CheckCircle } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { isAdmin } from "@/lib/utils";
 import { useUser } from "@clerk/nextjs";
+import { Appointment } from "@/lib/types";
 
 export default function Calendar() {
   const {
@@ -88,6 +89,11 @@ export default function Calendar() {
     );
   };
 
+  const shouldShowDetails = (apt: Appointment) => {
+    if (apt.status === "approved" || isAdmin(user?.id)) return true;
+    else return false;
+  };
+
   const handleDayClick = (date: Date) => {
     const dateStr = format(date, "yyyy-MM-dd");
 
@@ -122,12 +128,6 @@ export default function Calendar() {
     }
   };
 
-  const handleDayKeyDown = (e: React.KeyboardEvent, date: Date) => {
-    if (e.key === "Enter") {
-      handleDayClick(date);
-    }
-  };
-
   const handleDotClick = (
     e: React.MouseEvent,
     apt: (typeof appointments)[0],
@@ -135,7 +135,9 @@ export default function Calendar() {
     e.stopPropagation();
     setSelectedAppointment(apt);
     // Open the appointment detail card for both admins and regular users
-    useAppStore.getState().setShowAppointmentDetail(true);
+    if (shouldShowDetails(apt)) {
+      useAppStore.getState().setShowAppointmentDetail(true);
+    }
   };
 
   const weekDayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -240,7 +242,7 @@ export default function Calendar() {
                               apt,
                             );
                         }}
-                        className="transition-all duration-200 hover:scale-150 cursor-pointer relative flex items-center justify-center"
+                        className={`transition-all duration-200  ${!shouldShowDetails(apt) ? "hover:scale-0 pointer-events-none" : "hover:scale-150 cursor-pointer"} relative flex items-center justify-center`}
                         title={`${apt.arrivalTime || apt.requestedTime} - ${apt.finishedTime || ""}`}
                         style={
                           isCompleted
