@@ -717,8 +717,8 @@ export default function AppointmentDetail() {
           }
           defaultBody={
             status === "rejected"
-              ? `<p>Hi ${selectedAppointment.userName || "there"},</p><p>Unfortunately your appointment on <strong>${selectedAppointment.date}</strong> has been <strong>declined</strong>.</p><p>Please feel free to request a new time.</p>`
-              : `<p>Hi ${selectedAppointment.userName || "there"},</p><p>Your appointment on <strong>${selectedAppointment.date}</strong> has been updated to <strong>${status}</strong>.</p>${arrivalTime ? `<p>Arrival: ${arrivalTime}</p>` : ""}${finishedTime ? `<p>Estimated finish: ${finishedTime}</p>` : ""}`
+              ? `<p style="margin:0 0 20px;font-size:16px;color:rgba(255,255,255,0.85);">Hi ${selectedAppointment.userName || "there"},</p><p style="margin:0 0 16px;color:rgba(255,255,255,0.7);">Unfortunately, your appointment on <strong style="color:rgba(255,255,255,0.9);">${selectedAppointment.date}</strong> has been <span style="color:#f87171;font-weight:600;">declined</span>.</p><p style="margin:0;color:rgba(255,255,255,0.5);">Please feel free to request a new time.</p>`
+              : `<p style="margin:0 0 20px;font-size:16px;color:rgba(255,255,255,0.85);">Hi ${selectedAppointment.userName || "there"},</p><p style="margin:0 0 16px;color:rgba(255,255,255,0.7);">Your appointment on <strong style="color:rgba(255,255,255,0.9);">${selectedAppointment.date}</strong> has been updated to <span style="color:#a78bfa;font-weight:600;">${status}</span>.</p>${arrivalTime ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;background:rgba(167,139,250,0.08);border:1px solid rgba(167,139,250,0.15);border-radius:12px;margin:0 0 16px;"><tr><td style="padding:16px 20px;"><span style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,0.35);">Arrival</span><br/><span style="font-size:15px;color:rgba(255,255,255,0.9);">${formatTime(arrivalTime)}</span>${finishedTime ? `<br/><span style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-top:8px;display:inline-block;">Estimated Finish</span><br/><span style="font-size:15px;color:rgba(255,255,255,0.9);">${formatTime(finishedTime)}</span>` : ""}</td></tr></table>` : ""}`
           }
           composeMode={status === "rejected"}
           userId={user?.id || ""}
@@ -735,7 +735,7 @@ export default function AppointmentDetail() {
           }}
           defaultTo={selectedAppointment.userEmail}
           defaultSubject={`Your appointment on ${selectedAppointment.date} has been cancelled`}
-          defaultBody={`<p>Hi ${selectedAppointment.userName || "there"},</p><p>Your appointment on <strong>${selectedAppointment.date}</strong> has been <strong>cancelled</strong>.</p><p>If you have any questions, feel free to reach out.</p>`}
+          defaultBody={`<p style="margin:0 0 20px;font-size:16px;color:rgba(255,255,255,0.85);">Hi ${selectedAppointment.userName || "there"},</p><p style="margin:0 0 16px;color:rgba(255,255,255,0.7);">Your appointment on <strong style="color:rgba(255,255,255,0.9);">${selectedAppointment.date}</strong> has been <span style="color:#f87171;font-weight:600;">cancelled</span>.</p><p style="margin:0;color:rgba(255,255,255,0.5);">If you have any questions, feel free to reach out.</p>`}
           composeMode
           userId={user?.id || ""}
         />
@@ -751,7 +751,7 @@ export default function AppointmentDetail() {
           }}
           defaultTo={ADMIN_EMAIL}
           defaultSubject={`Appointment cancellation — ${selectedAppointment.date}`}
-          defaultBody={`<p>Hi,</p><p>I’d like to cancel my appointment on <strong>${selectedAppointment.date}</strong> at <strong>${formatTime(selectedAppointment.requestedTime)}</strong>.</p><p>Thanks,<br/>${selectedAppointment.userName || user?.fullName || ""}</p>`}
+          defaultBody={`<p style="margin:0 0 20px;font-size:16px;color:rgba(255,255,255,0.85);">Hi,</p><p style="margin:0 0 16px;color:rgba(255,255,255,0.7);">I'd like to cancel my appointment on <strong style="color:rgba(255,255,255,0.9);">${selectedAppointment.date}</strong> at <strong style="color:rgba(255,255,255,0.9);">${formatTime(selectedAppointment.requestedTime)}</strong>.</p><p style="margin:0;color:rgba(255,255,255,0.6);">Thanks,<br/><span style="color:rgba(255,255,255,0.8);">${selectedAppointment.userName || user?.fullName || ""}</span></p>`}
           composeMode
           userId={user?.id || ""}
         />
@@ -764,7 +764,7 @@ export default function AppointmentDetail() {
           onConfirm={() => setShowResubmitEmailModal(false)}
           defaultTo={ADMIN_EMAIL}
           defaultSubject={`Question about my appointment on ${selectedAppointment.date}`}
-          defaultBody={`<p>Hi,</p><p>I had a question about my appointment on <strong>${selectedAppointment.date}</strong> that was declined.</p><p>Thanks,<br/>${selectedAppointment.userName || user?.fullName || ""}</p>`}
+          defaultBody={`<p style="margin:0 0 20px;font-size:16px;color:rgba(255,255,255,0.85);">Hi,</p><p style="margin:0 0 16px;color:rgba(255,255,255,0.7);">I had a question about my appointment on <strong style="color:rgba(255,255,255,0.9);">${selectedAppointment.date}</strong> that was declined.</p><p style="margin:0;color:rgba(255,255,255,0.6);">Thanks,<br/><span style="color:rgba(255,255,255,0.8);">${selectedAppointment.userName || user?.fullName || ""}</span></p>`}
           composeMode
           userId={user?.id || ""}
         />

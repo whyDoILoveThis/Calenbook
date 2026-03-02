@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import FormData from "form-data";
 import Mailgun from "mailgun.js";
+import { wrapEmailTemplate } from "@/lib/email-template";
 
 /**
  * POST /api/email
@@ -86,7 +87,7 @@ export async function POST(request: NextRequest) {
       from: `Calenbook <noreply@${domain}>`,
       to: [to],
       subject,
-      html,
+      html: wrapEmailTemplate(html, subject),
     });
 
     return NextResponse.json({ success: true, messageId: data.id });
