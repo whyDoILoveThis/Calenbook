@@ -60,9 +60,15 @@ export async function POST(request: NextRequest) {
     const apiKey = process.env.MAILGUN_API_KEY;
     const domain = process.env.MAILGUN_DOMAIN;
 
-    if (!apiKey || !domain) {
+    if (!apiKey) {
       return NextResponse.json(
-        { error: "Mailgun is not configured on this server" },
+        { error: "Mailgun apikey missing" },
+        { status: 500 },
+      );
+    }
+    if (!domain) {
+      return NextResponse.json(
+        { error: "Mailgun domain missing" },
         { status: 500 },
       );
     }
