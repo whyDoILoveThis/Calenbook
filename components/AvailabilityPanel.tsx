@@ -24,6 +24,7 @@ import TimeSelector from "./TimeSelector";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { useUser } from "@clerk/nextjs";
 import toast from "react-hot-toast";
+import EmailConfirmModal from "./EmailConfirmModal";
 
 /* ------------------------------------------------------------------ */
 /*  Types for local weekly-schedule editing state                     */
@@ -77,6 +78,7 @@ export default function AvailabilityPanel() {
   const [showAllUsers, setShowAllUsers] = useState(false);
   const [userSearch, setUserSearch] = useState("");
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [showComposeEmail, setShowComposeEmail] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
 
   // Close settings dropdown on outside click
@@ -458,8 +460,18 @@ export default function AvailabilityPanel() {
               <Settings className="w-4 h-4" />
             </button>
             {showSettingsDropdown && (
-              <div className="absolute right-0 top-full mt-2 w-48 glass-panel rounded-xl border border-white/10 shadow-xl z-20 overflow-hidden">
-                {/* TODO:add button to the settings dropdown that will open a modal with controls to send custom sms or email or both at once with twilio */}
+              <div className="absolute right-0 top-full mt-2 w-48 glass-panel bg-slate-900! rounded-xl border border-white/10 shadow-xl z-20 overflow-hidden">
+                {/* Send custom email button */}
+                <button
+                  onClick={() => {
+                    setShowSettingsDropdown(false);
+                    setShowComposeEmail(true);
+                  }}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-white/70 hover:bg-white/10 transition-colors text-left"
+                >
+                  <Mail className="w-4 h-4" />
+                  Send Email
+                </button>
                 <button
                   onClick={() => {
                     setShowSettingsDropdown(false);
@@ -1089,6 +1101,18 @@ export default function AvailabilityPanel() {
             )}
           </div>
         </div>
+      )}
+
+      {/* Compose Email Modal — custom admin email */}
+      {showComposeEmail && (
+        <EmailConfirmModal
+          open={showComposeEmail}
+          onClose={() => setShowComposeEmail(false)}
+          onConfirm={() => setShowComposeEmail(false)}
+          userId={user?.id || ""}
+          composeMode={true}
+          sendLabel="Send"
+        />
       )}
     </div>
   );

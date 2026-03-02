@@ -31,6 +31,7 @@ import toast from "react-hot-toast";
 
 import { useUser } from "@clerk/nextjs";
 import IconDocument from "./icons/IconDocument";
+import EmailConfirmModal from "./EmailConfirmModal";
 
 export default function AdminPanel() {
   const { user } = useUser();
@@ -56,6 +57,11 @@ export default function AdminPanel() {
   );
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  // Email confirmation modal state
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [pendingAction, setPendingAction] = useState<
+    "approve" | "reject" | null
+  >(null);
 
   const filteredAppointments = useMemo(() => {
     if (selectedDate) {
@@ -109,19 +115,9 @@ export default function AdminPanel() {
     setView("detail");
   };
 
-  const handleApprove = async () => {
+  /** Execute the actual approve mutation (called after email modal decision) */
+  const executeApprove = async () => {
     if (!selectedAppointment) return;
-    if (!arrivalTime || !finishedTime) {
-      toast.error("Please set both arrival and finished times");
-      return;
-    }
-    // Warn about conflict but allow admin to proceed
-    if (hasConflict) {
-      toast("Warning: This overlaps with an existing appointment", {
-        icon: "⚠️",
-      });
-    }
-
     setProcessing(true);
     try {
       const result = await updateAppointment(selectedAppointment.$id, {
@@ -143,7 +139,8 @@ export default function AdminPanel() {
     }
   };
 
-  const handleReject = async () => {
+  /** Execute the actual reject mutation (called after email modal decision) */
+  const executeReject = async () => {
     if (!selectedAppointment) return;
     setProcessing(true);
     try {
@@ -162,6 +159,43 @@ export default function AdminPanel() {
     } finally {
       setProcessing(false);
     }
+  };
+
+  /**
+   * When admin clicks Approve: validate inputs, then show e-mail modal.
+   * The actual status change runs after the admin confirms or skips the email.
+   */
+  const handleApprove = () => {
+    if (!selectedAppointment) return;
+    if (!arrivalTime || !finishedTime) {
+      toast.error("Please set both arrival and finished times");
+      return;
+    }
+    if (hasConflict) {
+      toast("Warning: This overlaps with an existing appointment", {
+        icon: "⚠️",
+      });
+    }
+    setPendingAction("approve");
+    setShowEmailModal(true);
+  };
+
+  /** When admin clicks Reject: show e-mail modal. */
+  const handleReject = () => {
+    if (!selectedAppointment) return;
+    setPendingAction("reject");
+    setShowEmailModal(true);
+  };
+
+  /** Called from EmailConfirmModal — email was sent or skipped, now run the action */
+  const handleEmailDecision = async () => {
+    setShowEmailModal(false);
+    if (pendingAction === "approve") {
+      await executeApprove();
+    } else if (pendingAction === "reject") {
+      await executeReject();
+    }
+    setPendingAction(null);
   };
 
   const handleDelete = async () => {
@@ -437,7 +471,7 @@ export default function AdminPanel() {
                 )}
 
                 {/* Time selection for approval */}
-                {/*TODO: when approving or rejecting the admin should be prompted with modal with weather they want to send and sms or an email or both or not send anything with twilio at all */}
+                {/* Email confirmation modal — shown before approve/reject is finalized */}
                 {selectedAppointment.status === "pending" && (
                   <div className="space-y-4">
                     <TimeSelector
@@ -514,6 +548,30 @@ export default function AdminPanel() {
           )
         )}
       </div>
+
+      {/* Email Confirmation Modal — approve / reject flow */}
+      {showEmailModal && selectedAppointment && (
+        <EmailConfirmModal
+          open={showEmailModal}
+          onClose={() => {
+            setShowEmailModal(false);
+            setPendingAction(null);
+          }}
+          onConfirm={handleEmailDecision}
+          defaultTo={selectedAppointment.userEmail}
+          defaultSubject={
+            pendingAction === "approve"
+              ? `Your appointment on ${selectedAppointment.date} has been approved`
+              : `Your appointment on ${selectedAppointment.date} has been declined`
+          }
+          defaultBody={
+            pendingAction === "approve"
+              ? `<p>Hi ${selectedAppointment.userName || "there"},</p><p>Your appointment on <strong>${selectedAppointment.date}</strong> has been <strong>approved</strong>.</p><p>Arrival: ${arrivalTime || "TBD"}<br/>Estimated finish: ${finishedTime || "TBD"}</p><p>See you then!</p>`
+              : `<p>Hi ${selectedAppointment.userName || "there"},</p><p>Unfortunately your appointment on <strong>${selectedAppointment.date}</strong> has been <strong>declined</strong>.</p><p>Please feel free to request a new time.</p>`
+          }
+          userId={user?.id || ""}
+        />
+      )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (

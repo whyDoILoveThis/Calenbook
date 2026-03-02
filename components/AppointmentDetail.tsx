@@ -26,6 +26,7 @@ import TimeSelector from "./TimeSelector";
 import { format } from "date-fns";
 import { useUser } from "@clerk/nextjs";
 import toast from "react-hot-toast";
+import EmailConfirmModal from "./EmailConfirmModal";
 
 export default function AppointmentDetail() {
   const {
@@ -56,6 +57,8 @@ export default function AppointmentDetail() {
   const [statusOpen, setStatusOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  // Email confirmation modal state for admin save
+  const [showEmailModal, setShowEmailModal] = useState(false);
 
   useEffect(() => {
     setStatus(selectedAppointment?.status || "pending");
@@ -247,7 +250,7 @@ export default function AppointmentDetail() {
           </div>
         </div>
 
-        {/**TODO:if the user is an admin and the save button is pressed they should be promted with the same modal for sending sms or email or both or nothing at all with twilio */}
+        {/* Email confirm modal — admin is prompted before save completes */}
         {/* Status */}
         <div className="mb-4">
           {userIsAdmin ? (
@@ -283,38 +286,9 @@ export default function AppointmentDetail() {
                 />
               </div>
               <button
-                onClick={async () => {
-                  if (!selectedAppointment) return;
-                  setSaving(true);
-                  const payload: Partial<
-                    Pick<Appointment, "status" | "arrivalTime" | "finishedTime">
-                  > = { status: status as Appointment["status"] };
-                  if (arrivalTime) payload.arrivalTime = arrivalTime;
-                  if (finishedTime) payload.finishedTime = finishedTime;
-                  if (hasConflict) {
-                    toast(
-                      "Warning: This overlaps with an existing appointment",
-                      { icon: "⚠️" },
-                    );
-                  }
-                  const res = await updateAppointment(
-                    selectedAppointment.$id,
-                    payload as {
-                      status: string;
-                      arrivalTime?: string;
-                      finishedTime?: string;
-                    },
-                  );
-                  if (res.success) {
-                    toast.success("Saved");
-                    setSelectedAppointment({
-                      ...selectedAppointment,
-                      ...payload,
-                    } as Appointment);
-                  } else {
-                    toast.error(res.error || "Failed to save");
-                  }
-                  setSaving(false);
+                onClick={() => {
+                  // Show email modal; actual save runs after the admin chooses
+                  setShowEmailModal(true);
                 }}
                 disabled={saving}
                 className="glass-button px-3 py-1 rounded-md text-sm"
@@ -607,6 +581,52 @@ export default function AppointmentDetail() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Email Confirmation Modal — admin save flow */}
+      {showEmailModal && selectedAppointment && (
+        <EmailConfirmModal
+          open={showEmailModal}
+          onClose={() => setShowEmailModal(false)}
+          onConfirm={async () => {
+            // Email was sent or skipped — now execute the actual save
+            setShowEmailModal(false);
+            if (!selectedAppointment) return;
+            setSaving(true);
+            const payload: Partial<
+              Pick<Appointment, "status" | "arrivalTime" | "finishedTime">
+            > = { status: status as Appointment["status"] };
+            if (arrivalTime) payload.arrivalTime = arrivalTime;
+            if (finishedTime) payload.finishedTime = finishedTime;
+            if (hasConflict) {
+              toast("Warning: This overlaps with an existing appointment", {
+                icon: "⚠️",
+              });
+            }
+            const res = await updateAppointment(
+              selectedAppointment.$id,
+              payload as {
+                status: string;
+                arrivalTime?: string;
+                finishedTime?: string;
+              },
+            );
+            if (res.success) {
+              toast.success("Saved");
+              setSelectedAppointment({
+                ...selectedAppointment,
+                ...payload,
+              } as Appointment);
+            } else {
+              toast.error(res.error || "Failed to save");
+            }
+            setSaving(false);
+          }}
+          defaultTo={selectedAppointment.userEmail}
+          defaultSubject={`Appointment update — ${selectedAppointment.date}`}
+          defaultBody={`<p>Hi ${selectedAppointment.userName || "there"},</p><p>Your appointment on <strong>${selectedAppointment.date}</strong> has been updated to <strong>${status}</strong>.</p>${arrivalTime ? `<p>Arrival: ${arrivalTime}</p>` : ""}${finishedTime ? `<p>Estimated finish: ${finishedTime}</p>` : ""}`}
+          userId={user?.id || ""}
+        />
       )}
     </div>
   );
