@@ -12,7 +12,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { status, arrivalTime, finishedTime, requestedTime } = body;
+    const { status, arrivalTime, finishedTime, requestedTime, description } = body;
     console.log("[API] PATCH /api/appointments/" + id + " body:", body);
 
     // If approving, check for time conflicts
@@ -52,6 +52,7 @@ const appointment = await getById("appointments", id) as Appointment | null;
     if (arrivalTime) updateData.arrivalTime = arrivalTime;
     if (finishedTime) updateData.finishedTime = finishedTime;
     if (requestedTime) updateData.requestedTime = requestedTime;
+    if (description !== undefined) updateData.description = description;
 
     console.log("[API] PATCH updateData:", updateData);
 

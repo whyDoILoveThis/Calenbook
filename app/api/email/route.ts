@@ -10,8 +10,9 @@ import Mailgun from "mailgun.js";
  *
  * Environment variables required:
  *   MAILGUN_API_KEY            – Mailgun private API key
- *   MAILGUN_SANDBOX_DOMAIN     – Mailgun sending domain (sandbox or custom)
+ *   MAILGUN_DOMAIN              – Mailgun sending domain (e.g. calenbook.net)
  *   NEXT_PUBLIC_ADMIN_USER_ID  – Clerk user ID of the admin
+ *   NEXT_PUBLIC_ADMIN_EMAIL     – Admin email (used as recipient when users send messages)
  *
  * NOTE: On sandbox domains, recipients must be added as "Authorized Recipients"
  *       in the Mailgun dashboard before they can receive emails.
@@ -23,7 +24,7 @@ interface EmailPayload {
   to: string;
   subject: string;
   html: string;
-  userId: string; // Clerk user ID of the requester — must match admin
+  userId: string; // Clerk user ID of the requester
 }
 
 export async function POST(request: NextRequest) {
@@ -31,10 +32,10 @@ export async function POST(request: NextRequest) {
     const body = (await request.json()) as EmailPayload;
     const { to, subject, html, userId } = body;
 
-    // ── Auth: only the admin may send emails ──
-    if (!userId || userId !== ADMIN_USER_ID) {
+    // ── Auth: must be a signed-in user ──
+    if (!userId) {
       return NextResponse.json(
-        { error: "Unauthorized — only admins can send emails" },
+        { error: "Unauthorized — you must be signed in to send emails" },
         { status: 403 },
       );
     }
@@ -57,7 +58,7 @@ export async function POST(request: NextRequest) {
 
     // ── Read Mailgun credentials from env ──
     const apiKey = process.env.MAILGUN_API_KEY;
-    const domain = process.env.MAILGUN_SANDBOX_DOMAIN;
+    const domain = process.env.MAILGUN_DOMAIN;
 
     if (!apiKey || !domain) {
       return NextResponse.json(
@@ -76,7 +77,7 @@ export async function POST(request: NextRequest) {
     });
 
     const data = await mg.messages.create(domain, {
-      from: `Calenbook <postmaster@${domain}>`,
+      from: `Calenbook <noreply@${domain}>`,
       to: [to],
       subject,
       html,
@@ -88,17 +89,6 @@ export async function POST(request: NextRequest) {
     const message =
       error instanceof Error ? error.message : "Unknown email error";
     console.error("Email route error:", message);
-
-    // If Mailgun rejected the request (auth, domain, recipient not authorized, etc.)
-    if (message.includes("not allowed to send") || message.includes("Forbidden")) {
-      return NextResponse.json(
-        {
-          error:
-            "Mailgun rejected the request. If using a sandbox domain, make sure the recipient is added as an Authorized Recipient in your Mailgun dashboard.",
-        },
-        { status: 403 },
-      );
-    }
 
     return NextResponse.json(
       { error: "Failed to send email: " + message },

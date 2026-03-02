@@ -207,7 +207,7 @@ export function useAppointments() {
     const updateAppointment = useCallback(
     async (
       id: string,
-      data: { status?: string; arrivalTime?: string; finishedTime?: string; requestedTime?: string }
+      data: { status?: string; arrivalTime?: string; finishedTime?: string; requestedTime?: string; description?: string }
     ): Promise<{ success: boolean; error?: string }> => {
       // mark pending write so realtime listener won't clear on transient empty snapshot
       useAppStore.getState().setPendingWriteUntil(Date.now() + 5000);
@@ -238,6 +238,8 @@ export function useAppointments() {
               status: normalizeStatus(incoming.status ?? apt.status),
               arrivalTime: incoming.arrivalTime === null ? null : (String(incoming.arrivalTime ?? apt.arrivalTime)),
               finishedTime: incoming.finishedTime === null ? null : (String(incoming.finishedTime ?? apt.finishedTime)),
+              ...(incoming.description !== undefined ? { description: String(incoming.description) } : {}),
+              ...(incoming.requestedTime !== undefined ? { requestedTime: String(incoming.requestedTime) } : {}),
             };
             return merged;
           });

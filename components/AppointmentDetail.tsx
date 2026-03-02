@@ -10,6 +10,8 @@ import {
   User,
   AlertTriangle,
   ChevronLeft,
+  RotateCcw,
+  Mail,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { useAppointments } from "@/hooks/useData";
@@ -21,6 +23,7 @@ import {
   toProxyUrl,
 } from "@/lib/utils";
 import { Appointment } from "@/lib/types";
+import { ADMIN_USER_ID } from "@/lib/utils";
 import GlassDropdown from "./GlassDropdown";
 import TimeSelector from "./TimeSelector";
 import { format } from "date-fns";
@@ -55,10 +58,25 @@ export default function AppointmentDetail() {
   );
   const [saving, setSaving] = useState(false);
   const [statusOpen, setStatusOpen] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deleteConfirmText, setDeleteConfirmText] = useState("");
   // Email confirmation modal state for admin save
   const [showEmailModal, setShowEmailModal] = useState(false);
+  // Email confirmation modal state for admin delete
+  const [showDeleteEmailModal, setShowDeleteEmailModal] = useState(false);
+  // Email confirmation modal state for owner cancel
+  const [showOwnerCancelEmailModal, setShowOwnerCancelEmailModal] =
+    useState(false);
+  // Resubmit state for rejected appointments
+  const [editingResubmit, setEditingResubmit] = useState(false);
+  const [resubmitDescription, setResubmitDescription] = useState(
+    selectedAppointment?.description || "",
+  );
+  const [resubmitTime, setResubmitTime] = useState(
+    selectedAppointment?.requestedTime || "",
+  );
+  // Email compose modal for owner on rejected appointments
+  const [showResubmitEmailModal, setShowResubmitEmailModal] = useState(false);
+
+  const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "";
 
   useEffect(() => {
     setStatus(selectedAppointment?.status || "pending");
@@ -66,6 +84,9 @@ export default function AppointmentDetail() {
     setFinishedTime(selectedAppointment?.finishedTime || "");
     setRequestedTime(selectedAppointment?.requestedTime || "");
     setEditingRequestedTime(false);
+    setResubmitDescription(selectedAppointment?.description || "");
+    setResubmitTime(selectedAppointment?.requestedTime || "");
+    setEditingResubmit(false);
   }, [selectedAppointment]);
 
   // Overlap detection for admin time editing
@@ -121,8 +142,6 @@ export default function AppointmentDetail() {
       toast.success("Appointment cancelled");
       setSelectedAppointment(null);
       setShowAppointmentDetail(false);
-      setShowDeleteConfirm(false);
-      setDeleteConfirmText("");
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to cancel appointment";
@@ -133,13 +152,10 @@ export default function AppointmentDetail() {
   };
 
   const handleDeleteClick = () => {
-    setShowDeleteConfirm(true);
-    setDeleteConfirmText("");
-  };
-
-  const handleConfirmDelete = () => {
-    if (deleteConfirmText === "yes i want to cancel frfr") {
-      handleDelete();
+    if (userIsAdmin) {
+      setShowDeleteEmailModal(true);
+    } else {
+      setShowOwnerCancelEmailModal(true);
     }
   };
 
@@ -488,6 +504,128 @@ export default function AppointmentDetail() {
           </div>
         </div>
 
+        {/* Resubmit section for rejected appointments (owner only) */}
+        {isOwner && selectedAppointment.status === "rejected" && (
+          <div className="mb-4">
+            {!editingResubmit ? (
+              <div className="space-y-3">
+                <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 text-sm text-red-300/80">
+                  This appointment was declined. You can edit and resubmit it,
+                  or send a message.
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setEditingResubmit(true)}
+                    className="flex-1 primary-button py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    Edit & Resubmit
+                  </button>
+                  <button
+                    onClick={() => setShowResubmitEmailModal(true)}
+                    className="flex-1 glass-button py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2 text-white/60 hover:text-white/80 hover:bg-white/10 transition-colors"
+                  >
+                    <Mail className="w-4 h-4" />
+                    Send Message
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs text-white/40 mb-1 block">
+                    Requested Time
+                  </label>
+                  <select
+                    value={resubmitTime}
+                    onChange={(e) => setResubmitTime(e.target.value)}
+                    className="w-full glass-input rounded-lg px-3 py-2 text-sm text-white/90 bg-white/5"
+                  >
+                    <option value="" disabled>
+                      Select time
+                    </option>
+                    {Array.from({ length: 48 }, (_, i) => {
+                      const h = Math.floor(i / 2);
+                      const m = (i % 2) * 30;
+                      const time24 = `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
+                      return (
+                        <option
+                          key={time24}
+                          value={time24}
+                          className="bg-slate-900 text-white"
+                        >
+                          {formatTime(time24)}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-white/40 mb-1 block">
+                    Description
+                  </label>
+                  <textarea
+                    value={resubmitDescription}
+                    onChange={(e) => setResubmitDescription(e.target.value)}
+                    rows={4}
+                    className="w-full glass-input px-3 py-2 rounded-xl text-sm text-white/90 placeholder-white/30 resize-none"
+                    placeholder="Update your description..."
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setEditingResubmit(false);
+                      setResubmitTime(selectedAppointment.requestedTime || "");
+                      setResubmitDescription(
+                        selectedAppointment.description || "",
+                      );
+                    }}
+                    className="flex-1 glass-button py-2.5 rounded-xl text-sm font-medium text-white/60 hover:bg-white/10 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (!resubmitTime) {
+                        toast.error("Please select a time");
+                        return;
+                      }
+                      setSaving(true);
+                      const res = await updateAppointment(
+                        selectedAppointment.$id,
+                        {
+                          status: "pending",
+                          requestedTime: resubmitTime,
+                          description: resubmitDescription,
+                        },
+                      );
+                      if (res.success) {
+                        toast.success("Appointment resubmitted!");
+                        setSelectedAppointment({
+                          ...selectedAppointment,
+                          status: "pending",
+                          requestedTime: resubmitTime,
+                          description: resubmitDescription,
+                        });
+                        setEditingResubmit(false);
+                      } else {
+                        toast.error(res.error || "Failed to resubmit");
+                      }
+                      setSaving(false);
+                    }}
+                    disabled={saving || !resubmitTime}
+                    className="flex-1 primary-button py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    {saving ? "Resubmitting..." : "Resubmit"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Images */}
         {selectedAppointment.imageUrls &&
           selectedAppointment.imageUrls.length > 0 && (
@@ -532,57 +670,6 @@ export default function AppointmentDetail() {
         )}
       </div>
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
-          <div className="glass-panel rounded-2xl w-full max-w-sm p-6">
-            <h2 className="text-xl font-light text-white/90 mb-2">
-              Cancel Appointment?
-            </h2>
-            <p className="text-sm text-white/50 mb-5">
-              This action cannot be undone. To confirm, type the text below:
-            </p>
-
-            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 mb-4">
-              <p className="text-sm font-mono text-red-300/80">
-                yes i want to cancel frfr
-              </p>
-            </div>
-
-            <input
-              type="text"
-              value={deleteConfirmText}
-              onChange={(e) => setDeleteConfirmText(e.target.value)}
-              placeholder="Type the text above..."
-              className="w-full glass-input px-4 py-3 rounded-xl text-sm text-white/90 placeholder-white/30 mb-5"
-              autoFocus
-            />
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowDeleteConfirm(false);
-                  setDeleteConfirmText("");
-                }}
-                className="flex-1 glass-button py-3 rounded-xl text-sm font-medium text-white/60 hover:bg-white/10 transition-colors"
-              >
-                Keep It
-              </button>
-              <button
-                onClick={handleConfirmDelete}
-                disabled={
-                  deleteConfirmText !== "yes i want to cancel frfr" ||
-                  processing
-                }
-                className="flex-1 bg-red-500/20 border border-red-500/30 text-red-300 py-3 rounded-xl text-sm font-medium hover:bg-red-500/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {processing ? "Cancelling..." : "Yes, Cancel"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Email Confirmation Modal — admin save flow */}
       {showEmailModal && selectedAppointment && (
         <EmailConfirmModal
@@ -623,8 +710,62 @@ export default function AppointmentDetail() {
             setSaving(false);
           }}
           defaultTo={selectedAppointment.userEmail}
-          defaultSubject={`Appointment update — ${selectedAppointment.date}`}
-          defaultBody={`<p>Hi ${selectedAppointment.userName || "there"},</p><p>Your appointment on <strong>${selectedAppointment.date}</strong> has been updated to <strong>${status}</strong>.</p>${arrivalTime ? `<p>Arrival: ${arrivalTime}</p>` : ""}${finishedTime ? `<p>Estimated finish: ${finishedTime}</p>` : ""}`}
+          defaultSubject={
+            status === "rejected"
+              ? `Your appointment on ${selectedAppointment.date} has been declined`
+              : `Appointment update — ${selectedAppointment.date}`
+          }
+          defaultBody={
+            status === "rejected"
+              ? `<p>Hi ${selectedAppointment.userName || "there"},</p><p>Unfortunately your appointment on <strong>${selectedAppointment.date}</strong> has been <strong>declined</strong>.</p><p>Please feel free to request a new time.</p>`
+              : `<p>Hi ${selectedAppointment.userName || "there"},</p><p>Your appointment on <strong>${selectedAppointment.date}</strong> has been updated to <strong>${status}</strong>.</p>${arrivalTime ? `<p>Arrival: ${arrivalTime}</p>` : ""}${finishedTime ? `<p>Estimated finish: ${finishedTime}</p>` : ""}`
+          }
+          composeMode={status === "rejected"}
+          userId={user?.id || ""}
+        />
+      )}
+      {/* Email Confirmation Modal — admin delete flow */}
+      {showDeleteEmailModal && selectedAppointment && (
+        <EmailConfirmModal
+          open={showDeleteEmailModal}
+          onClose={() => setShowDeleteEmailModal(false)}
+          onConfirm={async () => {
+            setShowDeleteEmailModal(false);
+            await handleDelete();
+          }}
+          defaultTo={selectedAppointment.userEmail}
+          defaultSubject={`Your appointment on ${selectedAppointment.date} has been cancelled`}
+          defaultBody={`<p>Hi ${selectedAppointment.userName || "there"},</p><p>Your appointment on <strong>${selectedAppointment.date}</strong> has been <strong>cancelled</strong>.</p><p>If you have any questions, feel free to reach out.</p>`}
+          composeMode
+          userId={user?.id || ""}
+        />
+      )}
+      {/* Email Confirmation Modal — owner cancel flow */}
+      {showOwnerCancelEmailModal && selectedAppointment && (
+        <EmailConfirmModal
+          open={showOwnerCancelEmailModal}
+          onClose={() => setShowOwnerCancelEmailModal(false)}
+          onConfirm={async () => {
+            setShowOwnerCancelEmailModal(false);
+            await handleDelete();
+          }}
+          defaultTo={ADMIN_EMAIL}
+          defaultSubject={`Appointment cancellation — ${selectedAppointment.date}`}
+          defaultBody={`<p>Hi,</p><p>I’d like to cancel my appointment on <strong>${selectedAppointment.date}</strong> at <strong>${formatTime(selectedAppointment.requestedTime)}</strong>.</p><p>Thanks,<br/>${selectedAppointment.userName || user?.fullName || ""}</p>`}
+          composeMode
+          userId={user?.id || ""}
+        />
+      )}
+      {/* Email Confirmation Modal — owner message on rejected appointment */}
+      {showResubmitEmailModal && selectedAppointment && (
+        <EmailConfirmModal
+          open={showResubmitEmailModal}
+          onClose={() => setShowResubmitEmailModal(false)}
+          onConfirm={() => setShowResubmitEmailModal(false)}
+          defaultTo={ADMIN_EMAIL}
+          defaultSubject={`Question about my appointment on ${selectedAppointment.date}`}
+          defaultBody={`<p>Hi,</p><p>I had a question about my appointment on <strong>${selectedAppointment.date}</strong> that was declined.</p><p>Thanks,<br/>${selectedAppointment.userName || user?.fullName || ""}</p>`}
+          composeMode
           userId={user?.id || ""}
         />
       )}
