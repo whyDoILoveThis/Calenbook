@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
+import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,9 +14,29 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  themeColor: "#0f172a",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
 export const metadata: Metadata = {
   title: "Calenbook — Appointment Booking",
   description: "Modern appointment booking system with calendar management",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Calenbook",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
 };
 
 export default function RootLayout({
@@ -49,9 +70,14 @@ export default function RootLayout({
       }}
     >
       <html lang="en">
+        <head>
+          {/* Apple Touch Icon — iOS uses this for Add to Home Screen */}
+          <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+        </head>
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         >
+          <ServiceWorkerRegistration />
           {children}
         </body>
       </html>
