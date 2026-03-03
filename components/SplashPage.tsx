@@ -79,7 +79,7 @@ const STATS = [
 /* ------------------------------------------------------------------ */
 
 export default function SplashPage() {
-  const setShowApp = useAppStore((s) => s.setShowApp);
+  const setShowPinModal = useAppStore((s) => s.setShowPinModal);
 
   return (
     <div className="flex-1 overflow-y-auto overflow-x-hidden splash-scroll">
@@ -134,7 +134,7 @@ export default function SplashPage() {
         {/* CTA group */}
         <div className="mt-12 flex flex-col items-center gap-4">
           <button
-            onClick={() => setShowApp(true)}
+            onClick={() => setShowPinModal(true)}
             className="group primary-button px-10 py-3.5 rounded-2xl text-[15px] font-medium tracking-wide cursor-pointer flex items-center gap-2 shadow-[0_0_40px_rgba(147,51,234,0.18)]"
           >
             Get Started — It&apos;s Free
@@ -282,7 +282,7 @@ export default function SplashPage() {
             with one beautiful calendar.
           </p>
           <button
-            onClick={() => setShowApp(true)}
+            onClick={() => setShowPinModal(true)}
             className="group primary-button px-10 py-3.5 rounded-2xl text-[15px] font-medium tracking-wide cursor-pointer flex items-center gap-2 shadow-[0_0_40px_rgba(147,51,234,0.18)] mt-2"
           >
             Try Calenbook Free

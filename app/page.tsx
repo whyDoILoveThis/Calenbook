@@ -12,10 +12,12 @@ import AdminPanel from "@/components/AdminPanel";
 import AvailabilityPanel from "@/components/AvailabilityPanel";
 import AppointmentDetail from "@/components/AppointmentDetail";
 import UserAppointmentsList from "@/components/UserAppointmentsList";
+import PinEntryModal from "@/components/PinEntryModal";
+import ManagePinsModal from "@/components/ManagePinsModal";
 import { Toaster } from "react-hot-toast";
 
 export default function Home() {
-  const { isLoaded } = useUser();
+  const { isLoaded, user } = useUser();
   const {
     currentMonth,
     showApp,
@@ -24,10 +26,13 @@ export default function Home() {
     showAvailabilityPanel,
     showAppointmentDetail,
     showUserAppointments,
+    showPinModal,
+    showManagePinsModal,
+    pinAccess,
     loading,
   } = useAppStore();
 
-  const { listenAppointments } = useAppointments();
+  const { listenAppointments, listenPersonalAppointments } = useAppointments();
   const { fetchAvailability } = useAvailability();
 
   // Sync current user to Firebase on sign-in
@@ -42,6 +47,15 @@ export default function Home() {
       if (unsubscribe) unsubscribe();
     };
   }, [isLoaded, listenAppointments]);
+
+  // Listen to personal appointments when user is in personal mode
+  useEffect(() => {
+    if (!isLoaded || !user?.id || pinAccess !== "personal") return;
+    const unsubscribe = listenPersonalAppointments(user.id);
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [isLoaded, user?.id, pinAccess, listenPersonalAppointments]);
 
   useEffect(() => {
     if (isLoaded) {
@@ -95,6 +109,8 @@ export default function Home() {
       {showAvailabilityPanel && <AvailabilityPanel />}
       {showAppointmentDetail && <AppointmentDetail />}
       {showUserAppointments && <UserAppointmentsList />}
+      {showPinModal && <PinEntryModal />}
+      {showManagePinsModal && <ManagePinsModal />}
     </div>
   );
 }

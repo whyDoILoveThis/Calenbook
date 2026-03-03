@@ -10,6 +10,8 @@ export default function UserAppointmentsList() {
   const { user } = useUser();
   const {
     appointments,
+    personalAppointments,
+    pinAccess,
     selectedDate,
     showUserAppointments,
     setShowUserAppointments,
@@ -18,13 +20,18 @@ export default function UserAppointmentsList() {
     setShowBookingModal,
   } = useAppStore();
 
+  const isPersonalMode = pinAccess === "personal";
   const isDateFiltered = !!selectedDate;
 
-  const userAppointments = appointments.filter(
-    (apt) =>
-      apt.userEmail === user?.primaryEmailAddress?.emailAddress &&
-      (!isDateFiltered || apt.date === selectedDate),
-  );
+  const userAppointments = isPersonalMode
+    ? personalAppointments.filter(
+        (apt) => !isDateFiltered || apt.date === selectedDate,
+      )
+    : appointments.filter(
+        (apt) =>
+          apt.userEmail === user?.primaryEmailAddress?.emailAddress &&
+          (!isDateFiltered || apt.date === selectedDate),
+      );
 
   const getStatusColor = (status: string) => {
     switch (status) {

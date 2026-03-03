@@ -21,20 +21,30 @@ export default function Header() {
     setShowAvailabilityPanel,
     setSelectedDate,
     setShowUserAppointments,
+    setShowPinModal,
     appointments,
+    personalAppointments,
+    pinAccess,
   } = useAppStore();
+
+  const isPersonalMode = !userIsAdmin && pinAccess === "personal";
 
   const pendingCount = appointments.filter(
     (apt) => apt.status === "pending",
   ).length;
 
-  const userAppointmentCount = appointments.filter(
-    (apt) => apt.userEmail === user?.primaryEmailAddress?.emailAddress,
-  ).length;
+  const userAppointmentCount = isPersonalMode
+    ? personalAppointments.length
+    : appointments.filter(
+        (apt) => apt.userEmail === user?.primaryEmailAddress?.emailAddress,
+      ).length;
 
   return (
     <header className="flex items-center justify-between px-6 py-4 glass-header">
-      <div className="flex items-center gap-3">
+      <div
+        onClick={() => setShowApp(false)}
+        className={`flex items-center gap-3 ${showApp ? "cursor-pointer" : "cursor-default"}`}
+      >
         <CalendarClock className="w-6 h-6 text-purple-400" />
         <h1 className="text-lg font-light tracking-wider text-white/80">
           Calenbook
@@ -49,7 +59,7 @@ export default function Header() {
       <div className="flex items-center gap-4">
         {!showApp ? (
           <button
-            onClick={() => setShowApp(true)}
+            onClick={() => setShowPinModal(true)}
             className="primary-button px-4 py-2 rounded-xl text-sm font-medium tracking-wide cursor-pointer"
           >
             Try for Free

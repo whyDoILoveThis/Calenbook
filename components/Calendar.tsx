@@ -30,10 +30,25 @@ export default function Calendar() {
     setShowBookingModal,
     setSelectedAppointment,
     setShowAdminPanel,
+    pinAccess,
   } = useAppStore();
 
   const { user } = useUser();
   const userIsAdmin = isAdmin(user?.id);
+
+  const personalAppointments = useAppStore((s) => s.personalAppointments);
+
+  // Filter appointments based on pin access level
+  const visibleAppointments = useMemo(() => {
+    // Admins always see everything
+    if (userIsAdmin) return appointments;
+    // Full pin access → see all
+    if (pinAccess === "full") return appointments;
+    // Personal (no pin) → show only personal calendar appointments
+    if (pinAccess === "personal") return personalAppointments;
+    // Fallback
+    return [];
+  }, [appointments, personalAppointments, pinAccess, userIsAdmin]);
 
   const days = useMemo(() => {
     const monthStart = startOfMonth(currentMonth);
@@ -43,7 +58,11 @@ export default function Calendar() {
     return eachDayOfInterval({ start: calStart, end: calEnd });
   }, [currentMonth]);
 
+  const isPersonalMode = !userIsAdmin && pinAccess === "personal";
+
   const unavailableDates = useMemo(() => {
+    // Personal mode → no admin restrictions
+    if (isPersonalMode) return new Set<string>();
     const dates = new Set<string>();
     availability.forEach((rule) => {
       // Legacy specific_date rules (unavailable)
@@ -56,9 +75,11 @@ export default function Calendar() {
       }
     });
     return dates;
-  }, [availability]);
+  }, [availability, isPersonalMode]);
 
   const unavailableWeekdays = useMemo(() => {
+    // Personal mode → no admin restrictions
+    if (isPersonalMode) return new Set<number>();
     const weekdays = new Set<number>();
     availability.forEach((rule) => {
       // Legacy weekday rules (unavailable)
@@ -71,16 +92,16 @@ export default function Calendar() {
       }
     });
     return weekdays;
-  }, [availability]);
+  }, [availability, isPersonalMode]);
 
   const appointmentsByDate = useMemo(() => {
-    const map: Record<string, typeof appointments> = {};
-    appointments.forEach((apt) => {
+    const map: Record<string, typeof visibleAppointments> = {};
+    visibleAppointments.forEach((apt) => {
       if (!map[apt.date]) map[apt.date] = [];
       map[apt.date].push(apt);
     });
     return map;
-  }, [appointments]);
+  }, [visibleAppointments]);
 
   const isDayUnavailable = (date: Date) => {
     const dateStr = format(date, "yyyy-MM-dd");
@@ -101,6 +122,13 @@ export default function Calendar() {
       return;
     }
 
+    // Personal mode → always open booking (no admin data involved)
+    if (isPersonalMode) {
+      setSelectedDate(dateStr);
+      setShowBookingModal(true);
+      return;
+    }
+
     // If admin, clicking on a date with appointments opens the admin panel
     if (userIsAdmin) {
       const dayAppointments = appointmentsByDate[dateStr];
@@ -115,7 +143,7 @@ export default function Calendar() {
       return;
     }
 
-    // Regular user - check if they have appointments on this day
+    // Regular user with full pin access - check if they have appointments on this day
     const dayAppointments = appointmentsByDate[dateStr];
     const userHasAppointments =
       dayAppointments && dayAppointments.some((apt) => apt.userId === user?.id);

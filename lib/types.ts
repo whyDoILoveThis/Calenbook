@@ -39,6 +39,17 @@ export interface AdminApprovalData {
   finishedTime: string;
 }
 
+export interface Pin {
+  $id: string;
+  code: string; // 4-digit string
+  createdAt: number; // timestamp ms
+  expiresAt: number | null; // timestamp ms, null = never expires
+  label?: string; // optional friendly name
+  forUserId?: string; // if set, pin only works for this Clerk user ID
+  forUserEmail?: string; // display/matching email for the assigned user
+  forUserName?: string; // display name for the assigned user
+}
+
 export interface DbUser {
   $id: string; // Clerk user ID
   name: string;

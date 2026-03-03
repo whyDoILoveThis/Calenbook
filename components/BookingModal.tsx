@@ -31,10 +31,14 @@ export default function BookingModal() {
     setSelectedDate,
     appointments,
     availability,
+    pinAccess,
     setShowAdminPanel,
     setSelectedAppointment,
     setShowAppointmentDetail,
+    setShowUserAppointments,
   } = useAppStore();
+
+  const isPersonalMode = pinAccess === "personal";
   const { createAppointment } = useAppointments();
   const { user } = useUser();
 
@@ -46,7 +50,7 @@ export default function BookingModal() {
   const [submitting, setSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [visualProgress, setVisualProgress] = useState(0);
-  const [showMyAppointments, setShowMyAppointments] = useState(false);
+  // const [showMyAppointments, setShowMyAppointments] = useState(false);
   const [dotColor, setDotColor] = useState<string>(DEFAULT_DOT_COLOR);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -83,6 +87,7 @@ export default function BookingModal() {
   const userIsAdmin = isAdmin(user?.id);
   const hasTooManyAppointments =
     !userIsAdmin &&
+    !isPersonalMode &&
     appointments.filter(
       (apt) =>
         apt.userId === user?.id &&
@@ -90,8 +95,10 @@ export default function BookingModal() {
     ).length >= 3;
 
   // Get approved appointments on the selected date for overlap checking
+  // In personal mode, skip — no admin appointment data should be visible
   const approvedOnDate = useMemo(() => {
     if (!selectedDate) return [];
+    if (isPersonalMode) return [];
     return appointments.filter(
       (apt) =>
         apt.date === selectedDate &&
@@ -99,15 +106,17 @@ export default function BookingModal() {
         apt.arrivalTime &&
         apt.finishedTime,
     );
-  }, [appointments, selectedDate]);
+  }, [appointments, selectedDate, isPersonalMode]);
 
   // Determine operating hours for the selected date
+  // In personal mode, skip admin availability restrictions entirely
   const operatingHours = useMemo<
     { start: string; end: string } | "closed" | null
   >(() => {
     if (!selectedDate) return null;
+    if (isPersonalMode) return null;
     return getOperatingHours(selectedDate, availability);
-  }, [selectedDate, availability]);
+  }, [selectedDate, availability, isPersonalMode]);
 
   // Build 30-min time slot options filtered by AM/PM
   const timeSlotOptions = useMemo(() => {
@@ -190,9 +199,9 @@ export default function BookingModal() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Prevent more than 2 active appointments/requests (admins have no limit)
+    // Prevent more than 2 active appointments/requests (admins and personal mode have no limit)
     const userIsAdmin = isAdmin(user?.id);
-    if (!userIsAdmin) {
+    if (!userIsAdmin && !isPersonalMode) {
       const activeCount = appointments.filter(
         (apt) =>
           apt.userId === user?.id &&
@@ -237,6 +246,7 @@ export default function BookingModal() {
       formData.append("requestedTime", time);
       formData.append("description", description);
       formData.append("color", dotColor);
+      if (isPersonalMode) formData.append("mode", "personal");
 
       images.forEach((image) => {
         formData.append("images", image);
@@ -366,23 +376,24 @@ export default function BookingModal() {
         {/* Close button */}
         <div className="absolute top-4 right-4 flex gap-4">
           {/* Show list button only if this date has appointments */}
-          {appointments.filter((apt) => apt.date === selectedDate).length >
-            0 && (
-            <button
-              onClick={() => {
-                const userIsAdmin = isAdmin(user?.id);
-                if (userIsAdmin) {
-                  setShowAdminPanel(true);
-                  setShowBookingModal(false);
-                } else {
-                  setShowMyAppointments(true);
-                }
-              }}
-              className="glass-button p-1.5 rounded-lg"
-            >
-              <IconList size={16} />
-            </button>
-          )}
+          {appointments.filter((apt) => apt.date === selectedDate).length > 0 &&
+            !isPersonalMode && (
+              <button
+                onClick={() => {
+                  const userIsAdmin = isAdmin(user?.id);
+                  if (userIsAdmin) {
+                    setShowAdminPanel(true);
+                    setShowBookingModal(false);
+                  } else if (!isPersonalMode) {
+                    setShowUserAppointments(true);
+                    setShowBookingModal(false);
+                  }
+                }}
+                className="glass-button p-1.5 rounded-lg"
+              >
+                <IconList size={16} />
+              </button>
+            )}
           <button
             onClick={handleClose}
             className="glass-button p-1.5 rounded-lg"
@@ -594,7 +605,8 @@ export default function BookingModal() {
       </div>
 
       {/* My Appointments List Modal (for non-admin users) */}
-      {showMyAppointments && (
+      {/* OLD APPOINTMENTS LIST DEPRICATED - REPLACED WITH UserAppointmentsList COMPONENT */}
+      {/* {showMyAppointments && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -659,7 +671,7 @@ export default function BookingModal() {
             )}
           </div>
         </div>
-      )}
+      )} */}
     </div>
   );
 }

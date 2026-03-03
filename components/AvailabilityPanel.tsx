@@ -15,6 +15,7 @@ import {
   Mail,
   ChevronLeft,
   ChevronRight,
+  Key,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { useAvailability, useAppointments, useUsers } from "@/hooks/useData";
@@ -54,6 +55,7 @@ export default function AvailabilityPanel() {
     currentMonth,
     setSelectedAppointment,
     setShowAppointmentDetail,
+    setShowManagePinsModal,
   } = useAppStore();
   const {
     createAvailability,
@@ -471,6 +473,16 @@ export default function AvailabilityPanel() {
                 >
                   <Mail className="w-4 h-4" />
                   Send Email
+                </button>
+                <button
+                  onClick={() => {
+                    setShowSettingsDropdown(false);
+                    setShowManagePinsModal(true);
+                  }}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-white/70 hover:bg-white/10 transition-colors text-left"
+                >
+                  <Key className="w-4 h-4" />
+                  Set Pins
                 </button>
                 <button
                   onClick={() => {

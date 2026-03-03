@@ -49,6 +49,7 @@ export async function POST(request: NextRequest) {
     const requestedTime = formData.get("requestedTime") as string;
     const description = formData.get("description") as string;
     const color = (formData.get("color") as string) || "#60A5FA"; // default blue
+    const mode = formData.get("mode") as string | null; // "personal" or null
 
     // Images: upload to Appwrite, store fileId and view URL in Firebase
     const images = (formData.getAll("images") as unknown) as File[];
@@ -73,6 +74,33 @@ export async function POST(request: NextRequest) {
           continue;
         }
       }
+    }
+
+    // Personal mode: write to personal-appointments/{userId}/, auto-approve, skip availability
+    if (mode === "personal") {
+      const newRef = push(ref(db, `personal-appointments/${userId}`));
+      const appointment = {
+        createdAt: Date.now(),
+        userId,
+        ...(userName ? { userName } : {}),
+        userEmail,
+        date,
+        requestedTime,
+        arrivalTime: requestedTime,
+        finishedTime: null,
+        description,
+        color,
+        imageIds,
+        imageUrls,
+        status: "approved",
+      };
+      await set(newRef, appointment);
+
+      const resp: { appointment: typeof appointment & { $id: string }, warning?: string } = { appointment: { ...appointment, $id: newRef.key! } };
+      if (uploadFailed) {
+        resp.warning = "Some images could not be uploaded. You can add them later.";
+      }
+      return NextResponse.json(resp, { status: 201 });
     }
 
 

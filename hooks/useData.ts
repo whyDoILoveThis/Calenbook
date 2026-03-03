@@ -10,7 +10,7 @@ import { db } from "@/lib/firebase";
 import { useUser } from "@clerk/nextjs";
 
 export function useAppointments() {
-  const { setAppointments, setLoading } = useAppStore();
+  const { setAppointments, setPersonalAppointments, setLoading } = useAppStore();
 
   // Realtime listener for ALL appointments (no month filter)
   const listenAppointments = useCallback(() => {
@@ -82,6 +82,44 @@ export function useAppointments() {
     // Return unsubscribe function
     return () => off(dbRef, "value", callback);
   }, [setAppointments, setLoading]);
+
+  // Realtime listener for personal appointments (stored per-user)
+  const listenPersonalAppointments = useCallback((userId: string) => {
+    const dbRef = ref(db, `personal-appointments/${userId}`);
+
+    const normalizeStatus = (s: unknown) =>
+      s === "approved" || s === "rejected" || s === "pending" || s === "completed" ? (s as Appointment["status"]) : "approved";
+
+    const callback = (snapshot: DataSnapshot) => {
+      if (!snapshot.exists()) {
+        setPersonalAppointments([]);
+        return;
+      }
+      const raw = snapshot.val() as Record<string, Record<string, unknown>>;
+      const items = Object.entries(raw).map(([key, o]) => ({
+        $id: key,
+        $createdAt: Number(o["$createdAt"] ?? o["createdAt"] ?? 0),
+        userId: String(o["userId"] ?? ""),
+        userName: typeof o["userName"] === "string" ? String(o["userName"]) : undefined,
+        userEmail: String(o["userEmail"] ?? ""),
+        date: String(o["date"] ?? ""),
+        requestedTime: String(o["requestedTime"] ?? ""),
+        arrivalTime: o["arrivalTime"] === null ? null : String(o["arrivalTime"] ?? ""),
+        finishedTime: o["finishedTime"] === null ? null : String(o["finishedTime"] ?? ""),
+        description: String(o["description"] ?? ""),
+        color: typeof o["color"] === "string" ? String(o["color"]) : "#60A5FA",
+        imageIds: Array.isArray(o["imageIds"]) ? (o["imageIds"] as string[]) : [],
+        imageUrls: Array.isArray(o["imageUrls"]) ? (o["imageUrls"] as string[]) : [],
+        status: normalizeStatus(o["status"]),
+      } as Appointment));
+
+      items.sort((a, b) => (b.$createdAt ?? 0) - (a.$createdAt ?? 0));
+      setPersonalAppointments(items);
+    };
+
+    onValue(dbRef, callback);
+    return () => off(dbRef, "value", callback);
+  }, [setPersonalAppointments]);
 
   // Keep fetchAppointments for manual fetch (legacy)
   const fetchAppointments = useCallback(
@@ -271,12 +309,25 @@ export function useAppointments() {
     }
   }, []);
 
+    const deletePersonalAppointment = useCallback(async (id: string, userId: string) => {
+    try {
+      const { remove } = await import("firebase/database");
+      const aptRef = ref(db, `personal-appointments/${userId}/${id}`);
+      await remove(aptRef);
+    } catch (error) {
+      console.error("Failed to delete personal appointment:", error);
+      throw error;
+    }
+  }, []);
+
   return {
     fetchAppointments,
     listenAppointments,
+    listenPersonalAppointments,
     createAppointment,
     updateAppointment,
     deleteAppointment,
+    deletePersonalAppointment,
   };
 }
 
