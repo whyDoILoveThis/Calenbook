@@ -299,6 +299,112 @@ html, body, * {
   color: white;
 }
 
+/* ─── Splash page styles ────────────────────────────────── */
+
+.splash-scroll {
+  scroll-behavior: smooth;
+}
+
+.splash-card {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.05) 0%,
+    rgba(255, 255, 255, 0.02) 50%,
+    rgba(147, 51, 234, 0.03) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.2),
+    0 0 0 0.5px rgba(255, 255, 255, 0.04) inset,
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.02);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Top-edge highlight shimmer */
+.splash-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.1) 30%,
+    rgba(147, 51, 234, 0.15) 50%,
+    rgba(255, 255, 255, 0.1) 70%,
+    transparent 100%
+  );
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.splash-card:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.07) 0%,
+    rgba(255, 255, 255, 0.03) 50%,
+    rgba(147, 51, 234, 0.06) 100%
+  );
+  border-color: rgba(147, 51, 234, 0.18);
+  box-shadow:
+    0 16px 48px rgba(0, 0, 0, 0.24),
+    0 0 60px rgba(147, 51, 234, 0.06),
+    0 0 0 0.5px rgba(255, 255, 255, 0.06) inset,
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.03);
+  transform: translateY(-3px);
+}
+
+.splash-card:hover::before {
+  opacity: 1;
+}
+
+/* Scroll-triggered fade up */
+@keyframes splashFadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.splash-fade-up {
+  animation: splashFadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Pulsing sparkle badge */
+@keyframes splashPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.9); }
+}
+.splash-pulse {
+  animation: splashPulse 2.5s ease-in-out infinite;
+}
+
+/* Scroll-cue bounce */
+@keyframes splashBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(6px); }
+}
+.splash-bounce {
+  animation: splashBounce 2s ease-in-out infinite;
+}
+
+/* Ambient orb drift */
+@keyframes orbDrift {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(30px, -20px); }
+}
+.splash-orb-slow {
+  animation: orbDrift 18s ease-in-out infinite;
+}
+.splash-orb-slower {
+  animation: orbDrift 24s ease-in-out infinite reverse;
+}
+
 /* ─── iOS PWA Standalone Mode Fixes ─────────────────────── */
 
 /*

@@ -15,6 +15,8 @@ export default function Header() {
   const { user } = useUser();
   const userIsAdmin = isAdmin(user?.id);
   const {
+    showApp,
+    setShowApp,
     setShowAdminPanel,
     setShowAvailabilityPanel,
     setSelectedDate,
@@ -45,7 +47,14 @@ export default function Header() {
       </div>
 
       <div className="flex items-center gap-4">
-        {userIsAdmin ? (
+        {!showApp ? (
+          <button
+            onClick={() => setShowApp(true)}
+            className="primary-button px-4 py-2 rounded-xl text-sm font-medium tracking-wide cursor-pointer"
+          >
+            Try for Free
+          </button>
+        ) : userIsAdmin ? (
           <>
             {/** */}
             <button
@@ -85,14 +94,16 @@ export default function Header() {
             )}
           </button>
         )}
-        <UserButton
-          appearance={{
-            elements: {
-              avatarBox: "w-8 h-8",
-              userButtonPopoverCard: "glass-panel",
-            },
-          }}
-        />
+        {showApp && (
+          <UserButton
+            appearance={{
+              elements: {
+                avatarBox: "w-8 h-8",
+                userButtonPopoverCard: "glass-panel",
+              },
+            }}
+          />
+        )}
       </div>
     </header>
   );

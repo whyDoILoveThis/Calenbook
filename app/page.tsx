@@ -6,6 +6,7 @@ import { useAppStore } from "@/lib/store";
 import { useAppointments, useAvailability, useUserSync } from "@/hooks/useData";
 import Calendar from "@/components/Calendar";
 import Header from "@/components/Header";
+import SplashPage from "@/components/SplashPage";
 import BookingModal from "@/components/BookingModal";
 import AdminPanel from "@/components/AdminPanel";
 import AvailabilityPanel from "@/components/AvailabilityPanel";
@@ -17,6 +18,7 @@ export default function Home() {
   const { isLoaded } = useUser();
   const {
     currentMonth,
+    showApp,
     showBookingModal,
     showAdminPanel,
     showAvailabilityPanel,
@@ -72,17 +74,21 @@ export default function Home() {
 
       <Header />
 
-      <main className="flex-1 overflow-hidden relative">
-        {loading && (
-          <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10">
-            <div className="glass-button px-4 py-1.5 rounded-full text-xs text-white/50 flex items-center gap-2">
-              <div className="w-3 h-3 border-2 border-purple-400/30 border-t-purple-400 rounded-full animate-spin" />
-              Loading...
+      {showApp ? (
+        <main className="flex-1 overflow-hidden relative">
+          {loading && (
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10">
+              <div className="glass-button px-4 py-1.5 rounded-full text-xs text-white/50 flex items-center gap-2">
+                <div className="w-3 h-3 border-2 border-purple-400/30 border-t-purple-400 rounded-full animate-spin" />
+                Loading...
+              </div>
             </div>
-          </div>
-        )}
-        <Calendar />
-      </main>
+          )}
+          <Calendar />
+        </main>
+      ) : (
+        <SplashPage />
+      )}
 
       {showBookingModal && <BookingModal />}
       {showAdminPanel && <AdminPanel />}
