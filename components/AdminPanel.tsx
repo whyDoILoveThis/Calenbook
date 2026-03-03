@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import GlassDropdown from "./GlassDropdown";
 import TimeSelector from "./TimeSelector";
 import {
   X,
@@ -32,6 +31,7 @@ import toast from "react-hot-toast";
 import { useUser } from "@clerk/nextjs";
 import IconDocument from "./icons/IconDocument";
 import EmailConfirmModal from "./EmailConfirmModal";
+import CancelConfirmationModal from "./CancelConfirmationModal";
 
 export default function AdminPanel() {
   const { user } = useUser();
@@ -55,18 +55,33 @@ export default function AdminPanel() {
   const [view, setView] = useState<"list" | "detail">(
     selectedAppointment ? "detail" : "list",
   );
+  // Status filter for list view
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "pending" | "approved" | "rejected" | "completed"
+  >("all");
   // Email confirmation modal state
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [pendingAction, setPendingAction] = useState<
     "approve" | "reject" | "delete" | null
   >(null);
+  // Cancel confirmation modal state
+  const [showCancelConfirmation, setShowCancelConfirmation] = useState(false);
 
   const filteredAppointments = useMemo(() => {
+    let result = appointments;
+
+    // Filter by date if selected
     if (selectedDate) {
-      return appointments.filter((apt) => apt.date === selectedDate);
+      result = result.filter((apt) => apt.date === selectedDate);
     }
-    return appointments.filter((apt) => apt.status === "pending");
-  }, [appointments, selectedDate]);
+
+    // Filter by status
+    if (statusFilter !== "all") {
+      result = result.filter((apt) => apt.status === statusFilter);
+    }
+
+    return result;
+  }, [appointments, selectedDate, statusFilter]);
 
   const approvedOnDate = useMemo(() => {
     if (!selectedAppointment) return [];
@@ -193,32 +208,35 @@ export default function AdminPanel() {
     } else if (pendingAction === "reject") {
       await executeReject();
     } else if (pendingAction === "delete") {
-      await handleDelete();
-    }
-    setPendingAction(null);
-  };
-
-  const handleDelete = async () => {
-    if (!selectedAppointment || !user) return;
-    setProcessing(true);
-    try {
-      await deleteAppointment(selectedAppointment.$id, user.id);
-      toast.success("Appointment deleted");
+      // Delete already happened in handleCancelConfirmed, just update UI
       setView("list");
       setSelectedAppointment(null);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Failed to delete appointment";
-      toast.error(message);
-    } finally {
-      setProcessing(false);
     }
+    setPendingAction(null);
+    setProcessing(false);
   };
 
   const handleDeleteClick = () => {
     if (!selectedAppointment) return;
-    setPendingAction("delete");
-    setShowEmailModal(true);
+    setShowCancelConfirmation(true);
+  };
+
+  const handleCancelConfirmed = async () => {
+    if (!selectedAppointment || !user) return;
+    setProcessing(true);
+    try {
+      await deleteAppointment(selectedAppointment.$id, user.id);
+      toast.success("Appointment cancelled");
+      setShowCancelConfirmation(false);
+      // Show optional email notification modal
+      setPendingAction("delete");
+      setShowEmailModal(true);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to cancel appointment";
+      toast.error(message);
+      setProcessing(false);
+    }
   };
 
   return (
@@ -269,12 +287,33 @@ export default function AdminPanel() {
                     new Date(selectedDate + "T00:00:00"),
                     "MMM d, yyyy",
                   )}`
-                : "Pending Requests"}
+                : `${statusFilter === "all" ? "All" : statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)} Requests`}
             </h2>
             <p className="text-sm text-white/40 mb-6">
               {filteredAppointments.length} appointment
               {filteredAppointments.length !== 1 ? "s" : ""}
             </p>
+
+            {/* Status Filter Buttons */}
+            <div className="flex flex-wrap gap-2 mb-6">
+              {(
+                ["all", "pending", "approved", "rejected", "completed"] as const
+              ).map((status) => (
+                <button
+                  key={status}
+                  onClick={() => setStatusFilter(status)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    statusFilter === status
+                      ? "bg-purple-500/40 border border-purple-400/60 text-white"
+                      : "glass-button text-white/60 hover:text-white/80"
+                  }`}
+                >
+                  {status === "all"
+                    ? "All"
+                    : status.charAt(0).toUpperCase() + status.slice(1)}
+                </button>
+              ))}
+            </div>
 
             <div className="space-y-3">
               {filteredAppointments.length === 0 && (
@@ -541,6 +580,14 @@ export default function AdminPanel() {
           )
         )}
       </div>
+
+      {/* Cancel Confirmation Modal */}
+      <CancelConfirmationModal
+        open={showCancelConfirmation}
+        onClose={() => setShowCancelConfirmation(false)}
+        onConfirm={handleCancelConfirmed}
+        isAdmin={true}
+      />
 
       {/* Email Confirmation Modal — approve / reject flow */}
       {showEmailModal && selectedAppointment && (

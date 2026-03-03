@@ -12,8 +12,8 @@ import { useUser } from "@clerk/nextjs";
 export function useAppointments() {
   const { setAppointments, setLoading } = useAppStore();
 
-  // Realtime listener for appointments
-  const listenAppointments = useCallback((month?: string) => {
+  // Realtime listener for ALL appointments (no month filter)
+  const listenAppointments = useCallback(() => {
     setLoading(true);
     const dbRef = ref(db, "appointments");
     const callback = (snapshot: DataSnapshot) => {
@@ -66,23 +66,15 @@ export function useAppointments() {
         } as Appointment;
       });
 
-      // Filter by month if provided
-      let filtered = normalized;
-      if (month) {
-        filtered = filtered.filter((apt) => apt.date.startsWith(month));
-      }
-
       const createdAtValue = (obj: unknown) => {
         const o = obj as Record<string, unknown>;
         const c = o["createdAt"] ?? o["$createdAt"] ?? 0;
         return Number(c as number) || 0;
       };
 
-      filtered = filtered.sort((a, b) => createdAtValue(b) - createdAtValue(a));
+      const sorted = normalized.sort((a, b) => createdAtValue(b) - createdAtValue(a));
 
-      // Always update when we have actual data, even if filtered is empty (legitimate for that month)
-      // But only if we have data from the database
-      setAppointments(filtered as Appointment[]);
+      setAppointments(sorted as Appointment[]);
       setLoading(false);
     };
 

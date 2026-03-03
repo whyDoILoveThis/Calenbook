@@ -12,6 +12,28 @@ import { useEffect } from "react";
  */
 export default function ServiceWorkerRegistration() {
   useEffect(() => {
+    // Only register SW in production — in dev it causes stale caches
+    // that prevent code changes from appearing on refresh
+    if (process.env.NODE_ENV !== "production") {
+      // Unregister any existing SW from prior dev runs
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          registrations.forEach((reg) => {
+            reg.unregister();
+            console.log("[PWA] Unregistered dev SW:", reg.scope);
+          });
+        });
+        // Clear all SW caches
+        caches.keys().then((names) => {
+          names.forEach((name) => {
+            caches.delete(name);
+            console.log("[PWA] Cleared cache:", name);
+          });
+        });
+      }
+      return;
+    }
+
     if ("serviceWorker" in navigator) {
       // Register after the page has fully loaded to avoid competing
       // with critical resource downloads during initial page load

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useRef, useMemo } from "react";
 import {
   X,
   Clock,
@@ -23,13 +23,13 @@ import {
   toProxyUrl,
 } from "@/lib/utils";
 import { Appointment } from "@/lib/types";
-import { ADMIN_USER_ID } from "@/lib/utils";
 import GlassDropdown from "./GlassDropdown";
 import TimeSelector from "./TimeSelector";
 import { format } from "date-fns";
 import { useUser } from "@clerk/nextjs";
 import toast from "react-hot-toast";
 import EmailConfirmModal from "./EmailConfirmModal";
+import CancelConfirmationModal from "./CancelConfirmationModal";
 
 export default function AppointmentDetail() {
   const {
@@ -65,6 +65,12 @@ export default function AppointmentDetail() {
   // Email confirmation modal state for owner cancel
   const [showOwnerCancelEmailModal, setShowOwnerCancelEmailModal] =
     useState(false);
+  // Cancel confirmation modal state for admin delete
+  const [showAdminCancelConfirmation, setShowAdminCancelConfirmation] =
+    useState(false);
+  // Cancel confirmation modal state for owner cancel
+  const [showOwnerCancelConfirmation, setShowOwnerCancelConfirmation] =
+    useState(false);
   // Resubmit state for rejected appointments
   const [editingResubmit, setEditingResubmit] = useState(false);
   const [resubmitDescription, setResubmitDescription] = useState(
@@ -78,7 +84,10 @@ export default function AppointmentDetail() {
 
   const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "";
 
-  useEffect(() => {
+  // Track which appointment we've synced local state for
+  const syncedIdRef = useRef(selectedAppointment?.$id);
+  if (selectedAppointment?.$id !== syncedIdRef.current) {
+    syncedIdRef.current = selectedAppointment?.$id;
     setStatus(selectedAppointment?.status || "pending");
     setArrivalTime(selectedAppointment?.arrivalTime || "");
     setFinishedTime(selectedAppointment?.finishedTime || "");
@@ -87,7 +96,7 @@ export default function AppointmentDetail() {
     setResubmitDescription(selectedAppointment?.description || "");
     setResubmitTime(selectedAppointment?.requestedTime || "");
     setEditingResubmit(false);
-  }, [selectedAppointment]);
+  }
 
   // Overlap detection for admin time editing
   const approvedOnDate = useMemo(() => {
@@ -134,28 +143,45 @@ export default function AppointmentDetail() {
     setShowAppointmentDetail(false);
   };
 
-  const handleDelete = async () => {
+  const handleDeleteClick = () => {
+    if (userIsAdmin) {
+      setShowAdminCancelConfirmation(true);
+    } else {
+      setShowOwnerCancelConfirmation(true);
+    }
+  };
+
+  const handleAdminCancelConfirmed = async () => {
     if (!user) return;
     setProcessing(true);
     try {
       await deleteAppointment(selectedAppointment.$id, user.id);
       toast.success("Appointment cancelled");
-      setSelectedAppointment(null);
-      setShowAppointmentDetail(false);
+      setShowAdminCancelConfirmation(false);
+      // Show optional email notification modal
+      setShowDeleteEmailModal(true);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to cancel appointment";
       toast.error(message);
-    } finally {
       setProcessing(false);
     }
   };
 
-  const handleDeleteClick = () => {
-    if (userIsAdmin) {
-      setShowDeleteEmailModal(true);
-    } else {
+  const handleOwnerCancelConfirmed = async () => {
+    if (!user) return;
+    setProcessing(true);
+    try {
+      await deleteAppointment(selectedAppointment.$id, user.id);
+      toast.success("Appointment cancelled");
+      setShowOwnerCancelConfirmation(false);
+      // Show optional email notification modal
       setShowOwnerCancelEmailModal(true);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to cancel appointment";
+      toast.error(message);
+      setProcessing(false);
     }
   };
 
@@ -670,6 +696,22 @@ export default function AppointmentDetail() {
         )}
       </div>
 
+      {/* Cancel Confirmation Modal — admin delete flow */}
+      <CancelConfirmationModal
+        open={showAdminCancelConfirmation}
+        onClose={() => setShowAdminCancelConfirmation(false)}
+        onConfirm={handleAdminCancelConfirmed}
+        isAdmin={true}
+      />
+
+      {/* Cancel Confirmation Modal — owner cancel flow */}
+      <CancelConfirmationModal
+        open={showOwnerCancelConfirmation}
+        onClose={() => setShowOwnerCancelConfirmation(false)}
+        onConfirm={handleOwnerCancelConfirmed}
+        isAdmin={false}
+      />
+
       {/* Email Confirmation Modal — admin save flow */}
       {showEmailModal && selectedAppointment && (
         <EmailConfirmModal
@@ -731,7 +773,10 @@ export default function AppointmentDetail() {
           onClose={() => setShowDeleteEmailModal(false)}
           onConfirm={async () => {
             setShowDeleteEmailModal(false);
-            await handleDelete();
+            // Deletion already happened in handleAdminCancelConfirmed, just close and cleanup
+            setSelectedAppointment(null);
+            setShowAppointmentDetail(false);
+            setProcessing(false);
           }}
           defaultTo={selectedAppointment.userEmail}
           defaultSubject={`Your appointment on ${selectedAppointment.date} has been cancelled`}
@@ -747,7 +792,10 @@ export default function AppointmentDetail() {
           onClose={() => setShowOwnerCancelEmailModal(false)}
           onConfirm={async () => {
             setShowOwnerCancelEmailModal(false);
-            await handleDelete();
+            // Deletion already happened in handleOwnerCancelConfirmed, just close and cleanup
+            setSelectedAppointment(null);
+            setShowAppointmentDetail(false);
+            setProcessing(false);
           }}
           defaultTo={ADMIN_EMAIL}
           defaultSubject={`Appointment cancellation — ${selectedAppointment.date}`}

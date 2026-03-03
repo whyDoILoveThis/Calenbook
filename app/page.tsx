@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
-import { format } from "date-fns";
 import { useAppStore } from "@/lib/store";
 import { useAppointments, useAvailability, useUserSync } from "@/hooks/useData";
 import Calendar from "@/components/Calendar";
@@ -34,14 +33,13 @@ export default function Home() {
 
   useEffect(() => {
     if (!isLoaded) return;
-    const monthStr = format(currentMonth, "yyyy-MM");
-    console.log("[TRACE] Setting up listener for month:", monthStr);
-    const unsubscribe = listenAppointments(monthStr);
+    console.log("[TRACE] Setting up listener for all appointments");
+    const unsubscribe = listenAppointments();
     return () => {
-      console.log("[TRACE] Cleaning up listener for month:", monthStr);
+      console.log("[TRACE] Cleaning up listener for all appointments");
       if (unsubscribe) unsubscribe();
     };
-  }, [isLoaded, currentMonth, listenAppointments]);
+  }, [isLoaded, listenAppointments]);
 
   useEffect(() => {
     if (isLoaded) {

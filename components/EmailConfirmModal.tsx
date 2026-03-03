@@ -177,7 +177,7 @@ export default function EmailConfirmModal({
                 onClick={onClose}
                 className="flex-1 glass-button py-2.5 rounded-xl text-sm font-medium text-white/60 hover:bg-white/10 transition-colors"
               >
-                Cancel
+                Don&apos;t Send
               </button>
               <button
                 onClick={handleSend}
