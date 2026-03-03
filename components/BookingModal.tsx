@@ -9,6 +9,8 @@ import {
   FileText,
   Image as ImageIcon,
   AlertTriangle,
+  Sparkles,
+  Loader2,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { useAppointments } from "@/hooks/useData";
@@ -52,6 +54,9 @@ export default function BookingModal() {
   const [visualProgress, setVisualProgress] = useState(0);
   // const [showMyAppointments, setShowMyAppointments] = useState(false);
   const [dotColor, setDotColor] = useState<string>(DEFAULT_DOT_COLOR);
+  const [descriptionFlagged, setDescriptionFlagged] = useState(false);
+  const [rewording, setRewording] = useState(false);
+  const [checking, setChecking] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Smooth visual progress: maps real upload 0-100 → 0-85%, then slow creep while server processes
@@ -229,6 +234,28 @@ export default function BookingModal() {
     if (!description.trim()) {
       toast.error("Please add a description");
       return;
+    }
+
+    // AI content check for non-admin users
+    if (!userIsAdmin) {
+      setChecking(true);
+      try {
+        const checkRes = await fetch("/api/ai-cleanser", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: description, mode: "check" }),
+        });
+        const checkData = (await checkRes.json()) as { flagged?: boolean };
+        if (checkData.flagged) {
+          setDescriptionFlagged(true);
+          setChecking(false);
+          return;
+        }
+      } catch {
+        // If AI check fails, allow submission to proceed
+        console.warn("AI content check failed, allowing submission");
+      }
+      setChecking(false);
     }
 
     setSubmitting(true);
@@ -516,11 +543,63 @@ export default function BookingModal() {
             </label>
             <textarea
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => {
+                setDescription(e.target.value);
+                if (descriptionFlagged) setDescriptionFlagged(false);
+              }}
               placeholder="Describe what you need, any details, preferences, etc..."
               rows={4}
-              className="w-full glass-input rounded-xl p-3 text-sm text-white/90 placeholder:text-white/20 resize-none"
+              className={`w-full glass-input rounded-xl p-3 text-sm text-white/90 placeholder:text-white/20 resize-none ${
+                descriptionFlagged ? "border-red-500/50" : ""
+              }`}
             />
+
+            {/* AI content flag notice */}
+            {descriptionFlagged && (
+              <div className="mt-2 rounded-xl border border-red-500/20 bg-red-500/[0.06] p-3 space-y-2">
+                <p className="text-sm text-red-300/80">
+                  That description isn&apos;t going to work. Please rewrite it
+                  or let AI help.
+                </p>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setRewording(true);
+                    try {
+                      const res = await fetch("/api/ai-cleanser", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          text: description,
+                          mode: "reword",
+                        }),
+                      });
+                      const data = (await res.json()) as { reworded?: string };
+                      if (data.reworded) {
+                        setDescription(data.reworded);
+                        setDescriptionFlagged(false);
+                        toast.success("Description reworded");
+                      } else {
+                        toast.error("Could not reword — try editing manually");
+                      }
+                    } catch {
+                      toast.error("Could not reach AI — try editing manually");
+                    } finally {
+                      setRewording(false);
+                    }
+                  }}
+                  disabled={rewording}
+                  className="glass-button px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 text-purple-300/80 hover:text-purple-300 transition-colors cursor-pointer"
+                >
+                  {rewording ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-3.5 h-3.5" />
+                  )}
+                  {rewording ? "Rewording…" : "Reword with AI"}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Image Upload */}
@@ -577,7 +656,7 @@ export default function BookingModal() {
           {/* Submit */}
           <button
             type="submit"
-            disabled={submitting || !!timeOverlap}
+            disabled={submitting || checking || !!timeOverlap}
             className={`w-full primary-button py-3 rounded-xl text-sm font-medium transition-all duration-200 ${submitting ? "submitting" : ""}`}
             style={
               submitting
@@ -588,7 +667,12 @@ export default function BookingModal() {
             }
           >
             <span className="relative z-10 flex items-center justify-center gap-2">
-              {submitting ? (
+              {checking ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Checking…
+                </>
+              ) : submitting ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   Uploading

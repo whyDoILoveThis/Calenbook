@@ -12,6 +12,8 @@ import {
   ChevronLeft,
   RotateCcw,
   Mail,
+  Sparkles,
+  Loader2,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { useAppointments } from "@/hooks/useData";
@@ -81,6 +83,10 @@ export default function AppointmentDetail() {
   );
   // Email compose modal for owner on rejected appointments
   const [showResubmitEmailModal, setShowResubmitEmailModal] = useState(false);
+  // AI cleanser state for resubmit
+  const [resubmitFlagged, setResubmitFlagged] = useState(false);
+  const [resubmitRewording, setResubmitRewording] = useState(false);
+  const [resubmitChecking, setResubmitChecking] = useState(false);
 
   const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "";
 
@@ -592,11 +598,71 @@ export default function AppointmentDetail() {
                   </label>
                   <textarea
                     value={resubmitDescription}
-                    onChange={(e) => setResubmitDescription(e.target.value)}
+                    onChange={(e) => {
+                      setResubmitDescription(e.target.value);
+                      if (resubmitFlagged) setResubmitFlagged(false);
+                    }}
                     rows={4}
-                    className="w-full glass-input px-3 py-2 rounded-xl text-sm text-white/90 placeholder-white/30 resize-none"
+                    className={`w-full glass-input px-3 py-2 rounded-xl text-sm text-white/90 placeholder-white/30 resize-none ${
+                      resubmitFlagged ? "border-red-500/50" : ""
+                    }`}
                     placeholder="Update your description..."
                   />
+
+                  {/* AI content flag notice */}
+                  {resubmitFlagged && (
+                    <div className="mt-2 rounded-xl border border-red-500/20 bg-red-500/6 p-3 space-y-2">
+                      <p className="text-sm text-red-300/80">
+                        That description isn&apos;t going to work. Please
+                        rewrite it or let AI help.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setResubmitRewording(true);
+                          try {
+                            const res = await fetch("/api/ai-cleanser", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                text: resubmitDescription,
+                                mode: "reword",
+                              }),
+                            });
+                            const data = (await res.json()) as {
+                              reworded?: string;
+                            };
+                            if (data.reworded) {
+                              setResubmitDescription(data.reworded);
+                              setResubmitFlagged(false);
+                              toast.success("Description reworded");
+                            } else {
+                              toast.error(
+                                "Could not reword \u2014 try editing manually",
+                              );
+                            }
+                          } catch {
+                            toast.error(
+                              "Could not reach AI \u2014 try editing manually",
+                            );
+                          } finally {
+                            setResubmitRewording(false);
+                          }
+                        }}
+                        disabled={resubmitRewording}
+                        className="glass-button px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 text-purple-300/80 hover:text-purple-300 transition-colors cursor-pointer"
+                      >
+                        {resubmitRewording ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Sparkles className="w-3.5 h-3.5" />
+                        )}
+                        {resubmitRewording
+                          ? "Rewording\u2026"
+                          : "Reword with AI"}
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <div className="flex gap-3">
                   <button
@@ -617,6 +683,35 @@ export default function AppointmentDetail() {
                         toast.error("Please select a time");
                         return;
                       }
+
+                      // AI content check for non-admin users
+                      if (!userIsAdmin) {
+                        setResubmitChecking(true);
+                        try {
+                          const checkRes = await fetch("/api/ai-cleanser", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              text: resubmitDescription,
+                              mode: "check",
+                            }),
+                          });
+                          const checkData = (await checkRes.json()) as {
+                            flagged?: boolean;
+                          };
+                          if (checkData.flagged) {
+                            setResubmitFlagged(true);
+                            setResubmitChecking(false);
+                            return;
+                          }
+                        } catch {
+                          console.warn(
+                            "AI content check failed, allowing resubmit",
+                          );
+                        }
+                        setResubmitChecking(false);
+                      }
+
                       setSaving(true);
                       const res = await updateAppointment(
                         selectedAppointment.$id,
@@ -640,11 +735,20 @@ export default function AppointmentDetail() {
                       }
                       setSaving(false);
                     }}
-                    disabled={saving || !resubmitTime}
+                    disabled={saving || resubmitChecking || !resubmitTime}
                     className="flex-1 primary-button py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    <RotateCcw className="w-4 h-4" />
-                    {saving ? "Resubmitting..." : "Resubmit"}
+                    {resubmitChecking ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Checking…
+                      </>
+                    ) : (
+                      <>
+                        <RotateCcw className="w-4 h-4" />
+                        {saving ? "Resubmitting..." : "Resubmit"}
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
